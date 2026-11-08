@@ -5,6 +5,7 @@ import { Component, useCallback, useState, useSyncExternalStore, type ReactNode 
 import { Pressable, Text, View } from "react-native";
 import type { HubEntry } from "./bus";
 import { groupEntries, recallSelection, rememberSelection, subscribeGroup } from "./store";
+import { activeTool, hasLanding, landingTool, takesOver } from "./tabs";
 
 /** One misbehaving tool must not take the whole pill down with it. */
 class ToolBoundary extends Component<{ name: string; theme: PluginTheme; children: ReactNode }, { error?: string }> {
@@ -63,10 +64,18 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   const { agentId, theme, layout } = props;
   const subscribe = useCallback((listener: () => void) => subscribeGroup(agentId, listener), [agentId]);
   const entries = useSyncExternalStore(subscribe, () => groupEntries(agentId));
-  const [chosen, setChosen] = useState(() => recallSelection(agentId));
-  const active = entries.find((entry) => entry.toolId === chosen && !entry.disabled) ?? entries.find((entry) => !entry.disabled) ?? entries[0];
+  // A remembered tab that takes the screen over is never restored: reopening Tools would land
+  // straight back in its dialog, and the tab strip would be out of reach.
+  const [chosen, setChosen] = useState(() => {
+    const recalled = recallSelection(agentId);
+    return recalled && !takesOver(recalled) ? recalled : undefined;
+  });
+  const active = activeTool(entries, chosen);
   if (!active) return null;
   const Body = active.Content;
+  // Closing a takeover tool's dialog goes back to the tab strip rather than closing Tools.
+  const backToTabs = takesOver(active.toolId) && hasLanding(entries);
+  const bodyProps = backToTabs ? { ...props, close: () => setChosen(landingTool(entries)?.toolId) } : props;
   return (
     <View style={{ width: layout.compact ? "100%" : 392, gap: 12 }}>
       <View accessibilityRole="tablist" style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -77,14 +86,14 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
             active={entry.toolId === active.toolId}
             theme={theme}
             onPress={() => {
-              rememberSelection(agentId, entry.toolId);
+              if (!takesOver(entry.toolId)) rememberSelection(agentId, entry.toolId);
               setChosen(entry.toolId);
             }}
           />
         ))}
       </View>
       <ToolBoundary key={active.toolId} name={active.title} theme={theme}>
-        <Body {...props} />
+        <Body {...bodyProps} />
       </ToolBoundary>
     </View>
   );
