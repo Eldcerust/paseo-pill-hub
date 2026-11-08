@@ -5,7 +5,7 @@ import { z } from "zod";
 export const KNOWN_TOOLS = [
   { toolId: "run", title: "Run", glyph: "SquareTerminal" },
   { toolId: "skills", title: "Skills", glyph: "Sparkles" },
-  { toolId: "switch", title: "Switch", glyph: "ArrowLeftRight" },
+  { toolId: "switch", title: "Switch", glyph: "Play" },
   { toolId: "export", title: "Export", glyph: "FileDown" },
 ] as const;
 
