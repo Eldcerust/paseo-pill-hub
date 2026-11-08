@@ -1,6 +1,5 @@
 import { defineRpc, defineSettings } from "@getpaseo/plugin";
 import { z } from "zod";
-import { PROVIDER_IDS } from "./ai";
 
 export interface KnownTool {
   /** The pill id the plugin used; also the key of its switch. */
@@ -24,7 +23,7 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
     glyph: "SquareTerminal",
     plugin: "Shell Yeah",
     pluginId: "shell-yeah",
-    origin: "Your fork (Eldcerust/shell-yeah) of Steve Castaneda's Shell Yeah",
+    origin: "Your own repo, Eldcerust/shell-yeah (on GitHub and your Forgejo), which a daily GitHub Action keeps in step with Steve Castaneda's Shell Yeah",
   },
   {
     toolId: "skills",
@@ -61,13 +60,18 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
 ];
 
 export const syncDefaults = { autoCheck: true, checkEveryHours: 6, autoStage: true };
-export const aiDefaults = { enabled: false, provider: "opencode" as const, customUrl: "", models: {}, keys: {} };
+/**
+ * The model an update is adapted with when none is chosen. It is an id from the daemon's OpenCode
+ * provider, so it is run as `opencode/opencode/deepseek-v4.1-flash`.
+ */
+export const DEFAULT_AI_MODEL = "opencode/deepseek-v4.1-flash";
+export const aiDefaults = { enabled: false, model: "" };
 
 /**
  * `merged`: a tool missing from it follows the default, merged into the hub pill.
- * `sync`: how the forks follow their upstreams. `ai`: an optional OpenAI-compatible model that
- * adapts a fork when an update conflicts or stops type-checking. Settings are plain host-side
- * JSON, not a credential vault, so the key is stored as ordinary text.
+ * `sync`: how the forks follow their upstreams. `ai`: whether the OpenCode agent already running
+ * in the Paseo daemon may adapt a fork when an update conflicts or stops type-checking, and
+ * which of its models to use. No API key is involved; the daemon's own OpenCode setup is used.
  */
 export const hubSettings = defineSettings({
   id: "hub",
@@ -85,10 +89,7 @@ export const hubSettings = defineSettings({
     ai: z
       .object({
         enabled: z.boolean().default(aiDefaults.enabled),
-        provider: z.enum(PROVIDER_IDS).default(aiDefaults.provider),
-        customUrl: z.string().trim().max(300).default(aiDefaults.customUrl),
-        models: z.record(z.string(), z.string().trim().max(200)).default({}),
-        keys: z.record(z.string(), z.string().trim().max(500)).default({}),
+        model: z.string().trim().max(300).default(aiDefaults.model),
       })
       .default(aiDefaults),
   }),

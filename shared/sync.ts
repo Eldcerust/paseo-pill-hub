@@ -1,6 +1,5 @@
 import { defineRpc } from "@getpaseo/plugin";
 import { z } from "zod";
-import { PROVIDER_IDS } from "./ai";
 
 export const forkState = z.enum([
   "own", // your own plugin, nothing upstream
@@ -32,18 +31,18 @@ export const forkStatus = z.object({
 });
 export type ForkStatus = z.infer<typeof forkStatus>;
 
-const statusOut = z.object({ forks: z.array(forkStatus), aiConfigured: z.boolean() });
+const statusOut = z.object({ forks: z.array(forkStatus) });
 
 export const syncStatus = defineRpc({ name: "sync.status", input: z.object({}), output: statusOut });
 /** Looks at every upstream (fetch / registry) and then reports. */
 export const syncCheck = defineRpc({ name: "sync.check", input: z.object({}), output: statusOut });
 /** Starts staging in the background; poll `sync.status` for the outcome. */
 export const syncStage = defineRpc({ name: "sync.stage", input: z.object({ toolId: z.string() }), output: statusOut });
-/** The model ids a provider lists, using the key saved for it. */
+/** The models the daemon's OpenCode provider offers. */
 export const syncModels = defineRpc({
   name: "sync.models",
-  input: z.object({ provider: z.enum(PROVIDER_IDS) }),
-  output: z.object({ models: z.array(z.string()) }),
+  input: z.object({}),
+  output: z.object({ models: z.array(z.object({ id: z.string(), label: z.string() })) }),
 });
 export const syncApply = defineRpc({
   name: "sync.apply",

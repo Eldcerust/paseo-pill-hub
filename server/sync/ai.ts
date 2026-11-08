@@ -1,26 +1,11 @@
 import { z } from "zod";
-import { timeoutSignal } from "./timeout";
 
 export type ChatMessage = { role: "system" | "user"; content: string };
+/** Asks a model and returns its text reply. The sync does not care how the model is reached. */
 export type Llm = (messages: ChatMessage[]) => Promise<string>;
 export interface FileText {
   path: string;
   content: string;
-}
-
-export interface AiConfig {
-  baseUrl: string;
-  model: string;
-  apiKey: string;
-  /** Extra request headers, such as OpenCode's session id and user agent. */
-  headers?: Record<string, string>;
-}
-
-/** The key is only ever sent over https, or to this computer. */
-function assertSafeUrl(address: string): void {
-  const url = new URL(address);
-  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-  if (url.protocol !== "https:" && !local) throw new Error("The model API address must be https, or on this computer.");
 }
 
 /** What the fork changed on purpose, so a model keeps it while taking upstream's changes. */
@@ -31,6 +16,7 @@ const BRIEF = [
   "3. Popover code imports useRpc, usePaseo and useHostedClient from ./hub-compat instead of @getpaseo/plugin/client.",
   "4. paseo-plugin.json has a different id, name and description. Keep them.",
   "Some forks also add a small RPC or settings screen. Keep every one of these changes, adopt upstream's changes, and change as little else as you can.",
+  "Do not use any tools and do not edit any files yourself: answer in text only.",
   'Reply with only JSON, no prose: {"files":[{"path":"relative/path","content":"the complete new file"}]}. Return every file you were given, whole.',
 ].join("\n");
 
@@ -93,50 +79,4 @@ export function validateEdits(
     if (missing.length > 0) return { ok: false, reason: `the model did not return: ${missing.join(", ")}` };
   }
   return { ok: true, edits: [...edits] };
-}
-
-/** A chat model reached through the chat-completions format, which OpenCode accepts for every text model. */
-export function chatLlm(config: AiConfig, doFetch: typeof fetch = fetch): Llm {
-  assertSafeUrl(config.baseUrl);
-  const endpoint = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-  return async (messages) => {
-    const limit = timeoutSignal(180_000);
-    try {
-      const response = await doFetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}`, ...config.headers },
-        body: JSON.stringify({ model: config.model, messages, temperature: 0 }),
-        signal: limit.signal,
-      });
-      if (!response.ok) throw new Error(`The model API answered ${response.status}.`);
-      const data = (await response.json()) as { choices?: { message?: { content?: unknown } }[] };
-      const content = data.choices?.[0]?.message?.content;
-      if (typeof content !== "string") throw new Error("The model API sent no text.");
-      return content;
-    } finally {
-      limit.clear();
-    }
-  };
-}
-
-/** The model ids a provider lists, sorted. Understands `{ data: [{ id }] }`, `{ models: [...] }` and a bare array. */
-export async function listModels(
-  target: { modelsUrl: string; apiKey: string; headers?: Record<string, string> },
-  doFetch: typeof fetch = fetch,
-): Promise<string[]> {
-  assertSafeUrl(target.modelsUrl);
-  const limit = timeoutSignal(30_000);
-  try {
-    const response = await doFetch(target.modelsUrl, { headers: { authorization: `Bearer ${target.apiKey}`, ...target.headers }, signal: limit.signal });
-    if (!response.ok) throw new Error(`The model API answered ${response.status}.`);
-    const body = (await response.json()) as unknown;
-    const wrapped = body as { data?: unknown; models?: unknown };
-    const list = Array.isArray(body) ? body : (wrapped.data ?? wrapped.models);
-    const ids = (Array.isArray(list) ? list : [])
-      .map((entry: unknown) => (typeof entry === "string" ? entry : (entry as { id?: unknown } | null)?.id))
-      .filter((id): id is string => typeof id === "string" && id !== "");
-    return [...new Set(ids)].sort().slice(0, 500);
-  } finally {
-    limit.clear();
-  }
 }

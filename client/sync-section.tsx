@@ -2,10 +2,9 @@ import { useRpc } from "@getpaseo/plugin/client";
 import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSelect, SettingsSwitch, useToast } from "@getpaseo/plugin/client/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
-import { AI_PROVIDERS, providerSpec } from "../shared/ai";
 import { KNOWN_TOOLS, type hubSettings } from "../shared/config";
 import { syncApply, syncCheck, syncStage, syncStatus } from "../shared/sync";
-import { AiForm } from "./ai-form";
+import { AiSection } from "./ai-section";
 import { actionFor, describeFork } from "./sync-text";
 
 type HubValues = z.output<typeof hubSettings.schema>;
@@ -48,7 +47,6 @@ export function SyncSection({ values, saving, save }: { values: HubValues; savin
   const busy = checking.isPending || staging.isPending || applying.isPending;
 
   const set = (patch: Partial<HubValues>) => void save({ ...values, ...patch });
-  const provider = providerSpec(values.ai.provider);
   const now = new Date();
   const forks = status.data?.forks ?? [];
 
@@ -109,30 +107,7 @@ export function SyncSection({ values, saving, save }: { values: HubValues; savin
         </SettingsCard>
       </SettingsSection>
 
-      <SettingsSection title="AI adaptation">
-        <SettingsCard>
-          <SettingsSwitch
-            label="Adapt with AI"
-            hint={
-              status.data?.aiConfigured
-                ? "When an update conflicts or stops type-checking, a model proposes the fix. It is checked again and marked AI-assisted, and you still apply it. The affected files are sent to the provider below."
-                : "Needs a key and a model for the provider below. Used only when an update conflicts or stops type-checking; the affected files are sent to that provider."
-            }
-            value={values.ai.enabled}
-            disabled={saving}
-            onValueChange={(enabled) => set({ ai: { ...values.ai, enabled } })}
-          />
-          <SettingsSelect
-            label="AI provider"
-            hint={provider.hint}
-            value={values.ai.provider}
-            options={AI_PROVIDERS.map((spec) => ({ label: spec.label, value: spec.id }))}
-            disabled={saving}
-            onValueChange={(next) => set({ ai: { ...values.ai, provider: next } })}
-          />
-          <AiForm key={values.ai.provider} provider={values.ai.provider} values={values} saving={saving} save={save} />
-        </SettingsCard>
-      </SettingsSection>
+      <AiSection values={values} saving={saving} save={save} />
     </>
   );
 }

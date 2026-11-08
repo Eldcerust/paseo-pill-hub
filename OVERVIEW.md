@@ -12,7 +12,7 @@ Open Settings and choose Pill hub. Each detected tool has a switch: on shows it 
 
 The plugins above are forks, so the hub also watches their upstreams. The Pill hub screen shows where each fork came from, how far behind it is, and a button for the next step: stage an update, then apply it. An update is merged and type-checked on a separate branch first, and nothing in the running plugin changes until you press Apply. You then reload that plugin. The hub can check every few hours and stage updates by itself.
 
-If an update conflicts or stops compiling, you can optionally let a model adapt it. Choose a provider on the same screen (OpenCode, OpenCode Go, OpenAI, or any OpenAI-compatible address) and enter its key and model, or load the model list. The affected files are sent to that provider, the key is stored as plain text in the host's plugin settings, and the result is still checked and still waits for you.
+If an update conflicts or stops compiling, you can optionally let the OpenCode agent already running in your Paseo daemon adapt it, so no API key is needed. You choose the model on the same screen. The affected files go to that model, it runs read-only, and the result is still checked and still waits for you.
 
 ## Limits
 

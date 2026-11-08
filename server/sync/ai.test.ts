@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatLlm, parseEdits, validateEdits } from "./ai";
+import { conflictPrompt, fixPrompt, parseEdits, validateEdits } from "./ai";
 
 describe("parseEdits", () => {
   const body = { files: [{ path: "a.ts", content: "x\n" }] };
@@ -36,34 +36,12 @@ describe("validateEdits", () => {
   });
 });
 
-describe("chatLlm", () => {
-  const reply = (body: unknown, ok = true): typeof fetch => (async () => ({ ok, status: ok ? 200 : 401, json: async () => body })) as unknown as typeof fetch;
-
-  it("posts to the chat endpoint with the key and returns the text", async () => {
-    let seen: { url: string; init: RequestInit } | undefined;
-    const doFetch = (async (url: string, init: RequestInit) => {
-      seen = { url, init };
-      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "hi" } }] }) };
-    }) as unknown as typeof fetch;
-    const llm = chatLlm({ baseUrl: "https://models.example.invalid/v1/", model: "m", apiKey: "secret" }, doFetch);
-    expect(await llm([{ role: "user", content: "x" }])).toBe("hi");
-    expect(seen?.url).toBe("https://models.example.invalid/v1/chat/completions");
-    expect((seen?.init.headers as Record<string, string>).authorization).toBe("Bearer secret");
-    expect(JSON.parse(String(seen?.init.body))).toMatchObject({ model: "m", temperature: 0 });
-  });
-
-  it("will not send the key over plain http to another computer", () => {
-    expect(() => chatLlm({ baseUrl: "http://models.example.invalid/v1", model: "m", apiKey: "k" })).toThrow(/https/);
-    expect(() => chatLlm({ baseUrl: "http://127.0.0.1:8090/v1", model: "m", apiKey: "k" })).not.toThrow();
-  });
-
-  it("reports a failing API by status, without echoing its answer", async () => {
-    const llm = chatLlm({ baseUrl: "https://models.example.invalid/v1", model: "m", apiKey: "k" }, reply({ error: "key sk-123 rejected" }, false));
-    await expect(llm([])).rejects.toThrow("The model API answered 401.");
-  });
-
-  it("fails clearly when the answer has no text", async () => {
-    const llm = chatLlm({ baseUrl: "https://models.example.invalid/v1", model: "m", apiKey: "k" }, reply({ choices: [] }));
-    await expect(llm([])).rejects.toThrow(/no text/);
+describe("prompts", () => {
+  it("tell the model to keep the compat changes and to use no tools", () => {
+    const [system, user] = conflictPrompt("1.2.0", [{ path: "a.ts", content: "x" }]);
+    expect(system?.content).toContain("hub-compat");
+    expect(system?.content).toContain("do not edit any files yourself");
+    expect(user?.content).toContain("===== a.ts =====");
+    expect(fixPrompt("a.ts(1,1): error TS1", [{ path: "a.ts", content: "x" }])[1]?.content).toContain("error TS1");
   });
 });

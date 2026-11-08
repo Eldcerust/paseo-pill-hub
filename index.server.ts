@@ -1,21 +1,17 @@
-import { randomUUID } from "node:crypto";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import type { z } from "zod";
-import { resolveAi, resolveModelsTarget } from "./shared/ai";
-import { aiDefaults, getConfig, hubSettings, syncDefaults } from "./shared/config";
+import { DEFAULT_AI_MODEL, aiDefaults, getConfig, hubSettings, syncDefaults } from "./shared/config";
 import { FORKS } from "./shared/forks";
 import { syncApply, syncCheck, syncModels, syncStage, syncStatus } from "./shared/sync";
-import { chatLlm, listModels } from "./server/sync/ai";
 import { createEngine } from "./server/sync/engine";
 import { exec } from "./server/sync/exec";
+import { listAiModels, paseoLlm, type Paseo } from "./server/sync/paseo-llm";
 import { defaultChecks, fetchBytes, fetchJson, pluginDirFromConfig } from "./server/sync/runtime";
 
 type HubValues = z.output<typeof hubSettings.schema>;
 
 const HOUR = 3_600_000;
 const FIRST_CHECK_DELAY = 30_000;
-/** OpenCode asks for one stable id per conversation, which helps its routing and prompt caching. */
-const SESSION = `pill-hub-${randomUUID()}`;
 
 export default function contribute(server: PluginServerContext) {
   const settings = server.registerSettings(hubSettings);
@@ -24,20 +20,27 @@ export default function contribute(server: PluginServerContext) {
   let first: ReturnType<typeof setTimeout> | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
 
-  /** The configured model, or undefined when AI adaptation is off or not fully set up. */
+  // The daemon connection arrives with each request and lifecycle event rather than at start, so the
+  // background checks use the latest one seen. Until one has been, there is no model to ask.
+  let daemon: Paseo | undefined;
+  const remember = (context: { paseo: Paseo }) => {
+    daemon = context.paseo;
+  };
+  const stopListening = [
+    server.on("agent.created", (_event, context) => remember(context)),
+    server.on("agent.turn_ended", (_event, context) => remember(context)),
+  ];
+
+  /** The model to adapt with, or undefined when AI adaptation is off or the daemon has not been seen yet. */
   function llm() {
-    const resolved = current.ai.enabled ? resolveAi(current.ai, SESSION) : undefined;
-    if (!resolved) return undefined;
-    try {
-      return chatLlm(resolved);
-    } catch (error) {
-      console.error("[pill-hub] AI adaptation is off:", error instanceof Error ? error.message : error);
-      return undefined;
-    }
+    if (!current.ai.enabled) return undefined;
+    const paseo = daemon;
+    if (!paseo) return () => Promise.reject(new Error("The Paseo daemon connection is not available yet; open the Pill hub screen once and retry"));
+    return paseoLlm(paseo, current.ai.model || DEFAULT_AI_MODEL);
   }
 
   const engine = createEngine({ exec, pluginDir: pluginDirFromConfig(), fetchJson, fetchBytes, checks: defaultChecks(), llm });
-  const report = async () => ({ forks: await engine.status(), aiConfigured: llm() !== undefined });
+  const report = async () => ({ forks: await engine.status() });
 
   /** Looks at every upstream and, when asked to, stages each update it finds, one at a time. */
   async function tick() {
@@ -71,32 +74,34 @@ export default function contribute(server: PluginServerContext) {
     const state = await settings.read();
     return { merged: state.status === "ready" ? state.values.merged : {} };
   });
-  server.handle(syncStatus, report);
-  server.handle(syncCheck, async () => {
+  server.handle(syncStatus, async (_input, context) => {
+    remember(context);
+    return report();
+  });
+  server.handle(syncCheck, async (_input, context) => {
+    remember(context);
     await engine.check();
     return report();
   });
-  server.handle(syncStage, async ({ toolId }) => {
+  server.handle(syncStage, async ({ toolId }, context) => {
+    remember(context);
     if (!FORKS.some((fork) => fork.toolId === toolId && fork.source.kind !== "own")) throw new Error(`${toolId} has no upstream to follow.`);
     // Staging installs packages, so it runs in the background; the screen polls for the outcome.
     void engine.stage(toolId).catch((error) => console.error("[pill-hub] staging failed", error));
     return report();
   });
-  server.handle(syncModels, async ({ provider }) => {
-    // Read the settings fresh: the key may have been saved a moment ago.
-    const state = await settings.read();
-    const target = resolveModelsTarget(state.status === "ready" ? state.values.ai : current.ai, provider, SESSION);
-    if (!target) throw new Error("Save an API key for this provider first, and an address too for a custom one.");
-    const models = await listModels(target);
-    if (models.length === 0) throw new Error("This provider listed no models.");
-    return { models };
+  server.handle(syncModels, async (_input, context) => {
+    remember(context);
+    return { models: await listAiModels(context.paseo) };
   });
-  server.handle(syncApply, async ({ toolId }) => {
+  server.handle(syncApply, async ({ toolId }, context) => {
+    remember(context);
     const message = await engine.apply(toolId);
     return { message, status: await report() };
   });
 
   return () => {
+    for (const stop of stopListening) stop();
     stopWatching();
     clearTimeout(first);
     clearInterval(timer);
