@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { KNOWN_TOOLS, hubSettings } from "../shared/config";
 import { getBus } from "./bus";
 import { activeHub } from "./hub";
+import { SyncSection } from "./sync-section";
 
 /** The tool ids that forks have announced, as one string so React compares it by value. */
 function useAnnounced(): Set<string> {
@@ -109,6 +110,7 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
           })}
         </SettingsCard>
       </SettingsSection>
+      <SyncSection values={settings.values} saving={settings.saving} save={(next) => settings.save(next, settings.revision)} />
       {announced.size === 0 ? (
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13 }}>
           No hub-aware plugin has reported in. Reload them, or this app may be isolating plugins from each other.

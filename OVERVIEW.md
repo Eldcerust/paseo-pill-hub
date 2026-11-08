@@ -8,6 +8,12 @@ Plugins that have a hub-aware version: Shell Yeah (the Run tab), Skills, Switchb
 
 Open Settings and choose Pill hub. Each detected tool has a switch: on shows it inside the Tools pill, off shows it as its own pill. New tools default to on. A tool shows as not detected until its hub-aware plugin has run. The switches are stored on the host, so they apply on every device that connects to it.
 
+## Keeping forks up to date
+
+The plugins above are forks, so the hub also watches their upstreams. The Pill hub screen shows where each fork came from, how far behind it is, and a button for the next step: stage an update, then apply it. An update is merged and type-checked on a separate branch first, and nothing in the running plugin changes until you press Apply. You then reload that plugin. The hub can check every few hours and stage updates by itself.
+
+If an update conflicts or stops compiling, you can optionally let an OpenAI-compatible model adapt it. You enter the API address, model and key on the same screen. The affected files are sent to that API, the key is stored as plain text in the host's plugin settings, and the result is still checked and still waits for you.
+
 ## Limits
 
 Changes made on another device appear within a minute. The hub needs Paseo 0.15.3 or later.
