@@ -1,5 +1,6 @@
 import { defineRpc } from "@getpaseo/plugin";
 import { z } from "zod";
+import { PROVIDER_IDS } from "./ai";
 
 export const forkState = z.enum([
   "own", // your own plugin, nothing upstream
@@ -38,6 +39,12 @@ export const syncStatus = defineRpc({ name: "sync.status", input: z.object({}), 
 export const syncCheck = defineRpc({ name: "sync.check", input: z.object({}), output: statusOut });
 /** Starts staging in the background; poll `sync.status` for the outcome. */
 export const syncStage = defineRpc({ name: "sync.stage", input: z.object({ toolId: z.string() }), output: statusOut });
+/** The model ids a provider lists, using the key saved for it. */
+export const syncModels = defineRpc({
+  name: "sync.models",
+  input: z.object({ provider: z.enum(PROVIDER_IDS) }),
+  output: z.object({ models: z.array(z.string()) }),
+});
 export const syncApply = defineRpc({
   name: "sync.apply",
   input: z.object({ toolId: z.string() }),

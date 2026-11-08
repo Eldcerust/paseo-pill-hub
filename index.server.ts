@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import type { z } from "zod";
+import { resolveAi, resolveModelsTarget } from "./shared/ai";
 import { aiDefaults, getConfig, hubSettings, syncDefaults } from "./shared/config";
 import { FORKS } from "./shared/forks";
-import { syncApply, syncCheck, syncStage, syncStatus } from "./shared/sync";
-import { chatLlm } from "./server/sync/ai";
+import { syncApply, syncCheck, syncModels, syncStage, syncStatus } from "./shared/sync";
+import { chatLlm, listModels } from "./server/sync/ai";
 import { createEngine } from "./server/sync/engine";
 import { exec } from "./server/sync/exec";
 import { defaultChecks, fetchBytes, fetchJson, pluginDirFromConfig } from "./server/sync/runtime";
@@ -12,6 +14,8 @@ type HubValues = z.output<typeof hubSettings.schema>;
 
 const HOUR = 3_600_000;
 const FIRST_CHECK_DELAY = 30_000;
+/** OpenCode asks for one stable id per conversation, which helps its routing and prompt caching. */
+const SESSION = `pill-hub-${randomUUID()}`;
 
 export default function contribute(server: PluginServerContext) {
   const settings = server.registerSettings(hubSettings);
@@ -22,10 +26,10 @@ export default function contribute(server: PluginServerContext) {
 
   /** The configured model, or undefined when AI adaptation is off or not fully set up. */
   function llm() {
-    const { enabled, baseUrl, model, apiKey } = current.ai;
-    if (!enabled || !baseUrl || !model || !apiKey) return undefined;
+    const resolved = current.ai.enabled ? resolveAi(current.ai, SESSION) : undefined;
+    if (!resolved) return undefined;
     try {
-      return chatLlm({ baseUrl, model, apiKey });
+      return chatLlm(resolved);
     } catch (error) {
       console.error("[pill-hub] AI adaptation is off:", error instanceof Error ? error.message : error);
       return undefined;
@@ -77,6 +81,15 @@ export default function contribute(server: PluginServerContext) {
     // Staging installs packages, so it runs in the background; the screen polls for the outcome.
     void engine.stage(toolId).catch((error) => console.error("[pill-hub] staging failed", error));
     return report();
+  });
+  server.handle(syncModels, async ({ provider }) => {
+    // Read the settings fresh: the key may have been saved a moment ago.
+    const state = await settings.read();
+    const target = resolveModelsTarget(state.status === "ready" ? state.values.ai : current.ai, provider, SESSION);
+    if (!target) throw new Error("Save an API key for this provider first, and an address too for a custom one.");
+    const models = await listModels(target);
+    if (models.length === 0) throw new Error("This provider listed no models.");
+    return { models };
   });
   server.handle(syncApply, async ({ toolId }) => {
     const message = await engine.apply(toolId);

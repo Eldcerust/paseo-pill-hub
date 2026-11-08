@@ -1,5 +1,6 @@
 import { defineRpc, defineSettings } from "@getpaseo/plugin";
 import { z } from "zod";
+import { PROVIDER_IDS } from "./ai";
 
 export interface KnownTool {
   /** The pill id the plugin used; also the key of its switch. */
@@ -60,7 +61,7 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
 ];
 
 export const syncDefaults = { autoCheck: true, checkEveryHours: 6, autoStage: true };
-export const aiDefaults = { enabled: false, baseUrl: "", model: "", apiKey: "" };
+export const aiDefaults = { enabled: false, provider: "opencode" as const, customUrl: "", models: {}, keys: {} };
 
 /**
  * `merged`: a tool missing from it follows the default, merged into the hub pill.
@@ -84,9 +85,10 @@ export const hubSettings = defineSettings({
     ai: z
       .object({
         enabled: z.boolean().default(aiDefaults.enabled),
-        baseUrl: z.string().trim().max(300).default(aiDefaults.baseUrl),
-        model: z.string().trim().max(200).default(aiDefaults.model),
-        apiKey: z.string().trim().max(500).default(aiDefaults.apiKey),
+        provider: z.enum(PROVIDER_IDS).default(aiDefaults.provider),
+        customUrl: z.string().trim().max(300).default(aiDefaults.customUrl),
+        models: z.record(z.string(), z.string().trim().max(200)).default({}),
+        keys: z.record(z.string(), z.string().trim().max(500)).default({}),
       })
       .default(aiDefaults),
   }),

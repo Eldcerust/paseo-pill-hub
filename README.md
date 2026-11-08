@@ -48,7 +48,16 @@ The hub checks every few hours and, if you leave it on, stages each update it fi
 
 ### AI adaptation
 
-Optional, off by default. When an update conflicts or stops type-checking, an OpenAI-compatible model can resolve the conflict or adapt the files the compiler names. Set the API address, model id and key on the Pill hub screen. The model sees the files in question and a short description of what the fork changes on purpose; it may only return files it was sent, whole, with no conflict markers. The result is type-checked again, marked AI-assisted, and still waits for you to apply it. The affected files are sent to that API, and the key is stored as plain text in the host's plugin settings.
+Optional, off by default. When an update conflicts or stops type-checking, a model can resolve the conflict or adapt the files the compiler names. Pick the provider on the Pill hub screen, then set its key and model. Providers (`shared/ai.ts`):
+
+| Provider | Address | Notes |
+| --- | --- | --- |
+| OpenCode | `https://opencode.ai/inference/openai/v1` | Default. Sends OpenCode's `x-opencode-session` header and its own user agent. Default model `deepseek-v4.1-flash`. Use a paid model; the free ones are for OpenCode itself. |
+| OpenCode Go | `https://opencode.ai/inference/go/openai/v1` | The Go plan. Its DeepSeek models need the Global region enabled in the OpenCode console. |
+| OpenAI | `https://api.openai.com/v1` | No default model; pick one from the list. |
+| Custom | typed | Any OpenAI-compatible server, such as a local llama.cpp. https, or on this computer. |
+
+Every provider is called through the chat-completions format, which OpenCode accepts for all its text models. Keys and models are stored per provider, so switching never borrows another's. "Load list" fetches the provider's model ids with the saved key (OpenCode's list is `/inference/v1/models`). To add a provider, add a row to `AI_PROVIDERS`. The model sees the files in question and a short description of what the fork changes on purpose; it may only return files it was sent, whole, with no conflict markers. The result is type-checked again, marked AI-assisted, and still waits for you to apply it. The affected files are sent to that API, and the key is stored as plain text in the host's plugin settings.
 
 To follow a new fork, add a row to `FORKS` in `shared/forks.ts`. For an npm fork, its repository needs a commit whose subject starts with `Import `, which is where the vendor branch begins.
 

@@ -12,6 +12,15 @@ export interface AiConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+  /** Extra request headers, such as OpenCode's session id and user agent. */
+  headers?: Record<string, string>;
+}
+
+/** The key is only ever sent over https, or to this computer. */
+function assertSafeUrl(address: string): void {
+  const url = new URL(address);
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !local) throw new Error("The model API address must be https, or on this computer.");
 }
 
 /** What the fork changed on purpose, so a model keeps it while taking upstream's changes. */
@@ -86,18 +95,16 @@ export function validateEdits(
   return { ok: true, edits: [...edits] };
 }
 
-/** An OpenAI-compatible chat model. The key is sent only over https, or to this computer. */
+/** A chat model reached through the chat-completions format, which OpenCode accepts for every text model. */
 export function chatLlm(config: AiConfig, doFetch: typeof fetch = fetch): Llm {
-  const url = new URL(config.baseUrl);
-  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-  if (url.protocol !== "https:" && !local) throw new Error("The model API address must be https, or on this computer.");
+  assertSafeUrl(config.baseUrl);
   const endpoint = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   return async (messages) => {
     const limit = timeoutSignal(180_000);
     try {
       const response = await doFetch(endpoint, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}` },
+        headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}`, ...config.headers },
         body: JSON.stringify({ model: config.model, messages, temperature: 0 }),
         signal: limit.signal,
       });
@@ -110,4 +117,26 @@ export function chatLlm(config: AiConfig, doFetch: typeof fetch = fetch): Llm {
       limit.clear();
     }
   };
+}
+
+/** The model ids a provider lists, sorted. Understands `{ data: [{ id }] }`, `{ models: [...] }` and a bare array. */
+export async function listModels(
+  target: { modelsUrl: string; apiKey: string; headers?: Record<string, string> },
+  doFetch: typeof fetch = fetch,
+): Promise<string[]> {
+  assertSafeUrl(target.modelsUrl);
+  const limit = timeoutSignal(30_000);
+  try {
+    const response = await doFetch(target.modelsUrl, { headers: { authorization: `Bearer ${target.apiKey}`, ...target.headers }, signal: limit.signal });
+    if (!response.ok) throw new Error(`The model API answered ${response.status}.`);
+    const body = (await response.json()) as unknown;
+    const wrapped = body as { data?: unknown; models?: unknown };
+    const list = Array.isArray(body) ? body : (wrapped.data ?? wrapped.models);
+    const ids = (Array.isArray(list) ? list : [])
+      .map((entry: unknown) => (typeof entry === "string" ? entry : (entry as { id?: unknown } | null)?.id))
+      .filter((id): id is string => typeof id === "string" && id !== "");
+    return [...new Set(ids)].sort().slice(0, 500);
+  } finally {
+    limit.clear();
+  }
 }
