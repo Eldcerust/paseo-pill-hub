@@ -13,6 +13,8 @@ const LABELS: Record<HeightPlatform, { label: string; where: string }> = {
   android: { label: "Android", where: "Android phones and tablets" },
 };
 
+const limitText = (value: number) => (value > 0 ? `${value} px` : "no limit");
+
 const textsOf = (heights: Heights): Record<HeightPlatform, string> => ({
   web: heightText(heights.web),
   ios: heightText(heights.ios),
@@ -56,7 +58,7 @@ export function HeightSection({ values, saving, save }: { values: HubValues; sav
       <SettingsCard>
         <SettingsRow
           label="Height of the tool under the tabs"
-          hint={`In px, from ${HEIGHT_MIN} to ${HEIGHT_MAX}. A tool taller than this scrolls inside it, under the tabs, instead of making the whole popover scroll. Leave a field blank for no limit. Paseo caps a popover on a computer at 440px, which is why PC starts lower than the phones.`}
+          hint={`In px, from ${HEIGHT_MIN} to ${HEIGHT_MAX}. A tool taller than this scrolls inside it, under the tabs, instead of making the whole popover scroll. Leave a field blank for no limit. Paseo caps a popover on a computer at 440px, which is why PC starts at ${heightDefaults.web}. Phones show a bottom sheet that scrolls by itself, and tools size themselves to the screen there, so phones start with no limit; a limit on a phone can clip a tool and hide its buttons.`}
         />
         {HEIGHT_PLATFORMS.map((platform) => {
           const result = parsed.find(([key]) => key === platform)?.[1];
@@ -64,7 +66,7 @@ export function HeightSection({ values, saving, save }: { values: HubValues; sav
             <SettingsInput
               key={`${platform}-${generation}`}
               label={LABELS[platform].label}
-              hint={`${LABELS[platform].where}. Default ${heightDefaults[platform]} px.`}
+              hint={`${LABELS[platform].where}. Default: ${limitText(heightDefaults[platform])}.`}
               error={result && !result.ok ? result.error : null}
               initialValue={initials[platform]}
               placeholder="No limit"
@@ -82,7 +84,7 @@ export function HeightSection({ values, saving, save }: { values: HubValues; sav
         />
         <SettingsAction
           label="Reset to defaults"
-          hint={`PC ${heightDefaults.web} px, iOS ${heightDefaults.ios} px, Android ${heightDefaults.android} px.`}
+          hint={`PC ${limitText(heightDefaults.web)}, iOS ${limitText(heightDefaults.ios)}, Android ${limitText(heightDefaults.android)}.`}
           actionLabel="Reset"
           disabled={saving}
           onPress={() => void reset()}

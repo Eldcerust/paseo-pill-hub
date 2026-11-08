@@ -8,7 +8,7 @@ Plugins that have a hub-aware version: Shell Yeah (the Run tab), Skills, Switchb
 
 Open Settings and choose Pill hub. Each detected tool has a switch: on shows it inside the Tools pill, off shows it as its own pill. New tools default to on. A tool shows as not detected until its hub-aware plugin has run. The switches are stored on the host, so they apply on every device that connects to it.
 
-Tool height sets, in pixels and separately for PC, iOS and Android, how tall the tool under the tabs may get. A taller tool scrolls inside it under the tab row, so the popover itself never has to. It starts at 350 on a computer, where Paseo caps a popover at 440, and 400 on phones. Leave a field blank for no limit.
+Tool height sets, in pixels and separately for PC, iOS and Android, how tall the tool under the tabs may get. A taller tool scrolls inside it under the tab row, so the popover itself never has to. It starts at 350 on a computer, where Paseo caps a popover at 440. Phones start with no limit, because they show a sheet that scrolls by itself and tools size themselves to the screen there. Leave a field blank for no limit.
 
 ## Keeping forks up to date
 

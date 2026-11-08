@@ -51,8 +51,10 @@ The header is deliberately a single row. Paseo caps a plugin popover on a comput
 | Platform | Default | Why |
 | --- | --- | --- |
 | PC | 350 px | The 440px popover cap, minus about 32px of padding and the 44px tab row, leaves room for Switch's 340px picker. |
-| iOS | 400 px | A phone popover is a bottom sheet, which has no such cap. |
-| Android | 400 px | Same as iOS. |
+| iOS | No limit | A phone shows a bottom sheet, which has no 440px cap and scrolls by itself. Tools size themselves to the screen there (Switch fills it, up to 560pt), so a limit only clips them and can hide their buttons. |
+| Android | No limit | Same as iOS. |
+
+A narrow desktop or browser window also shows a bottom sheet, so the PC value does not apply there either.
 
 The values are stored on the host, so every device of a platform shares one, and a change applies to open popovers without a reload. **Reset** puts the defaults back.
 

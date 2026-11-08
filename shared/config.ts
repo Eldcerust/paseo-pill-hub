@@ -74,9 +74,11 @@ export const HEIGHT_MAX = 2000;
  * Desktop: Paseo caps a plugin popover at 440px and scrolls the whole thing beyond that. About 32px
  * of that is the popover's own padding and the tab row takes 44, so 350 leaves a little to spare and
  * is enough for Switch's 340px picker.
- * Phones: the popover is a bottom sheet with no such cap, so they get more room.
+ * Phones: the popover is a bottom sheet, which has no such cap and scrolls by itself, and tools size
+ * themselves to the screen there (Switch fills it, up to 560pt). A limit would only clip them and
+ * hide their buttons, so phones start with no limit. It can still be set.
  */
-export const heightDefaults: Heights = { web: 350, ios: 400, android: 400 };
+export const heightDefaults: Heights = { web: 350, ios: 0, android: 0 };
 
 const validHeight = (value: number) => value === 0 || (value >= HEIGHT_MIN && value <= HEIGHT_MAX);
 

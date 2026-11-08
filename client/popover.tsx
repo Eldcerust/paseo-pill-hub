@@ -42,7 +42,7 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState(recallSort);
-  const limit = heightFor(useSyncExternalStore(subscribeHeights, currentHeights), layout.platform);
+  const limit = heightFor(useSyncExternalStore(subscribeHeights, currentHeights), layout.platform, layout.compact);
 
   const width = layout.compact ? "100%" : 392;
   if (entries.length === 0) {

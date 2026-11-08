@@ -43,6 +43,22 @@ describe("heightFor", () => {
   it("falls back to the desktop value for a platform it does not know", () => {
     expect(heightFor(heights, "visionos")).toBe(350);
   });
+
+  describe("in a compact layout, which is a bottom sheet with no 440px cap", () => {
+    it("ignores the desktop value, so a narrow browser window does not clip a tool", () => {
+      expect(heightFor(heights, "web", true)).toBeUndefined();
+      expect(heightFor(heights, "visionos", true)).toBeUndefined();
+    });
+
+    it("still honours a limit set for a phone platform", () => {
+      expect(heightFor(heights, "ios", true)).toBe(400);
+      expect(heightFor(heights, "android", true)).toBeUndefined();
+    });
+
+    it("leaves a non-compact layout alone", () => {
+      expect(heightFor(heights, "web", false)).toBe(350);
+    });
+  });
 });
 
 describe("heightText", () => {
@@ -97,5 +113,12 @@ describe("the defaults", () => {
     const headerRow = 34 + 10;
     expect(heightDefaults.web).toBeGreaterThanOrEqual(340);
     expect(hostPadding + headerRow + heightDefaults.web).toBeLessThanOrEqual(440);
+  });
+
+  it("leave phones unlimited, because Switch sizes itself to the screen there (up to 560pt) and a limit hides its buttons", () => {
+    expect(heightDefaults.ios).toBe(0);
+    expect(heightDefaults.android).toBe(0);
+    expect(heightFor(heightDefaults, "ios", true)).toBeUndefined();
+    expect(heightFor(heightDefaults, "android", true)).toBeUndefined();
   });
 });

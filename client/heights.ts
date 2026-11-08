@@ -27,9 +27,15 @@ export function setHeights(next: Heights): void {
 /**
  * The tallest the tool area may be on this platform, in px, or undefined for no limit. A platform
  * Paseo adds later falls back to the desktop value rather than to no limit at all.
+ *
+ * The desktop value exists because of the anchored popover's 440px cap. A compact layout shows a
+ * bottom sheet instead, which has no cap and scrolls itself, so the desktop value does not apply to
+ * it. A narrow browser window would otherwise clip a tool that sizes itself to the screen.
  */
-export function heightFor(heights: Heights, platform: string): number | undefined {
-  const value = (heights as Record<string, number | undefined>)[platform] ?? heights.web;
+export function heightFor(heights: Heights, platform: string, compact = false): number | undefined {
+  const known = platform in heights;
+  if (compact && (!known || platform === "web")) return undefined;
+  const value = (heights as Record<string, number | undefined>)[known ? platform : "web"] ?? heights.web;
   return value > 0 ? value : undefined;
 }
 
