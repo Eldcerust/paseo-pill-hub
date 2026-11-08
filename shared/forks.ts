@@ -27,7 +27,9 @@ export const FORKS: readonly ForkSpec[] = [
   { toolId: "skills", pluginId: "skills-fork", source: { kind: "npm", packageName: "@gpambrozio/paseo-skills" } },
   { toolId: "switch", pluginId: "switchboard", source: { kind: "own" } },
   { toolId: "export", pluginId: "paseo-exporter-fork", source: { kind: "git", remote: "origin", branch: "main" } },
-  { toolId: "workspace-links", pluginId: "workspace-links-fork", source: { kind: "npm", packageName: "@stevecastaneda/paseo-workspace-links" } },
+  // A standalone repo whose own Action merges the original's folder (git subtree split) into main. The npm
+  // tarball has no tests or lockfile, so a vendor-branch merge of it conflicts with the fork.
+  { toolId: "workspace-links", pluginId: "workspace-links-fork", source: { kind: "git", remote: "origin", branch: "main" } },
 ];
 
 /** The branch holding one commit per published version, for `npm` forks. */
