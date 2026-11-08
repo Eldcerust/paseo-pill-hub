@@ -28,7 +28,7 @@ describe("ago", () => {
 describe("describeFork", () => {
   it("puts the origin first, then the state, then when it was checked", () => {
     const text = describeFork(fork({ detail: "Up to date. Built on abc1234.", checkedAt: "2026-11-08T11:00:00Z" }), "Your fork of X", now);
-    expect(text.split("\n")).toEqual(["Your fork of X.", "Up to date. Built on abc1234.", "Checked 60 min ago."]);
+    expect(text.split("\n")).toEqual(["Your fork of X.", "Up to date. Built on abc1234.", "Checked 1 h ago."]);
   });
 
   it("does not claim a check while it is working", () => {
