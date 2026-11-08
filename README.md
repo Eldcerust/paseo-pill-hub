@@ -19,14 +19,14 @@ The bus protocol section of `hub-compat.tsx` must stay identical to `client/bus.
 
 ## Forks in this setup
 
-| Tool | Fork | Branch | Plugin id |
-| --- | --- | --- | --- |
-| Run | `shell-yeah` | `pill-hub-compat` | `shell-yeah` |
-| Switch | `paseo-switchboard` | `pill-hub-compat` | `switchboard` |
-| Export | `paseo-exporter-hub` (from `sgoley/paseo-exporter`, remote `upstream`) | `pill-hub-compat` | `exporter-hub` |
-| Skills | `paseo-skills-hub` (from `@gpambrozio/paseo-skills` 0.4.0) | `main` | `skills-hub` |
+| Tab | Plugin name | Plugin id | Folder | Where it came from | Branch |
+| --- | --- | --- | --- | --- | --- |
+| Run | Shell Yeah | `shell-yeah` | `shell-yeah` | Your fork (`Eldcerust/shell-yeah` on GitHub) of Steve Castaneda's Shell Yeah | `pill-hub-compat` |
+| Switch | Switchboard | `switchboard` | `paseo-switchboard` | Your own plugin (`Eldcerust/paseo-provider-switch` on your Forgejo) | `pill-hub-compat` |
+| Export | Conversation exporter (fork) | `paseo-exporter-fork` | `paseo-exporter-fork` | Your fork of sgoley's Conversation exporter (`sgoley/paseo-exporter`, listed at `plugins.paseo.sh/sgoley/exporter`); the official repo is the `upstream` remote | `pill-hub-compat` |
+| Skills | Skills (fork) | `skills-fork` | `paseo-skills-fork` | Your fork of gpambrozio's Skills, imported as published in `@gpambrozio/paseo-skills` 0.4.0 (listed at `plugins.paseo.sh/gpambrozio/skills`) | `main` |
 
-The Export and Skills forks use their own ids so the official plugins stay installed, disabled, and can be re-enabled to roll back.
+The Export and Skills forks have their own ids so the official plugins (`paseo-exporter`, `skills`) stay installed, disabled, and can be re-enabled to roll back. Do not enable a fork and its official plugin together: both would add the same pill and slash command.
 
 ## Development
 

@@ -2,7 +2,7 @@ Pill hub collapses the composer pills from other plugins into one Tools pill. Ta
 
 Paseo has no way for one plugin to hide another plugin's pill, so this works by cooperation. A plugin that supports the hub checks whether it is running and whether its tool is switched on. If both are true, it hands its popover to the hub. Otherwise it adds its own pill exactly as before, so stopping or disabling the hub brings every pill back.
 
-Plugins that have a hub-aware version: Run, Skills, Switch and Export. Plugins without one are unaffected and keep their own pills.
+Plugins that have a hub-aware version: Shell Yeah (the Run tab), Skills, Switchboard (the Switch tab) and Conversation exporter (the Export tab). Plugins without one are unaffected and keep their own pills. The settings screen names each plugin and where it came from.
 
 ## Settings
 
@@ -10,4 +10,4 @@ Open Settings and choose Pill hub. Each detected tool has a switch: on shows it 
 
 ## Limits
 
-Changes made on another device appear within a minute. A tool whose popover opens its own dialog, such as Switch, opens that dialog when you select its tab. The hub needs Paseo 0.15.3 or later.
+Changes made on another device appear within a minute. The hub needs Paseo 0.15.3 or later.

@@ -2,19 +2,53 @@ import { defineRpc, defineSettings } from "@getpaseo/plugin";
 import { z } from "zod";
 
 export interface KnownTool {
+  /** The pill id the plugin used; also the key of its switch. */
   toolId: string;
+  /** The tab label. */
   title: string;
   glyph: string;
-  /** Its popover opens its own full dialog over the hub, so the hub never lands on it. */
-  takesOver?: boolean;
+  /** The plugin's own name, as in its manifest. */
+  plugin: string;
+  /** The id it must be installed under to be the hub-aware one. */
+  pluginId: string;
+  /** Where it came from, shown next to its switch. */
+  origin: string;
 }
 
-/** Tools that have a compat fork. The hub lists them even when the fork is not installed. */
+/** Tools that have a hub-aware plugin. The hub lists them even when that plugin is not installed. */
 export const KNOWN_TOOLS: readonly KnownTool[] = [
-  { toolId: "run", title: "Run", glyph: "SquareTerminal" },
-  { toolId: "skills", title: "Skills", glyph: "Sparkles" },
-  { toolId: "switch", title: "Switch", glyph: "Play", takesOver: true },
-  { toolId: "export", title: "Export", glyph: "FileDown" },
+  {
+    toolId: "run",
+    title: "Run",
+    glyph: "SquareTerminal",
+    plugin: "Shell Yeah",
+    pluginId: "shell-yeah",
+    origin: "Your fork (Eldcerust/shell-yeah) of Steve Castaneda's Shell Yeah",
+  },
+  {
+    toolId: "skills",
+    title: "Skills",
+    glyph: "Sparkles",
+    plugin: "Skills (fork)",
+    pluginId: "skills-fork",
+    origin: "Your fork of gpambrozio's Skills 0.4.0 (plugins.paseo.sh/gpambrozio/skills)",
+  },
+  {
+    toolId: "switch",
+    title: "Switch",
+    glyph: "Play",
+    plugin: "Switchboard",
+    pluginId: "switchboard",
+    origin: "Your own plugin (Eldcerust/paseo-provider-switch)",
+  },
+  {
+    toolId: "export",
+    title: "Export",
+    glyph: "FileDown",
+    plugin: "Conversation exporter (fork)",
+    pluginId: "paseo-exporter-fork",
+    origin: "Your fork of sgoley's Conversation exporter (plugins.paseo.sh/sgoley/exporter)",
+  },
 ];
 
 /** A tool missing from `merged` follows the default: merged into the hub pill. */

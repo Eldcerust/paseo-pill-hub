@@ -63,10 +63,24 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
   }
 
   const tools = [
-    ...KNOWN_TOOLS.map((tool) => tool.toolId as string),
+    ...KNOWN_TOOLS.map((tool) => tool.toolId),
     ...[...announced].filter((toolId) => !KNOWN_TOOLS.some((tool) => tool.toolId === toolId)),
   ];
-  const titleOf = (toolId: string) => KNOWN_TOOLS.find((tool) => tool.toolId === toolId)?.title ?? toolId;
+  const known = (toolId: string) => KNOWN_TOOLS.find((tool) => tool.toolId === toolId);
+  // "Run (Shell Yeah)": the tab it adds, then the plugin that provides it.
+  const labelOf = (toolId: string) => {
+    const tool = known(toolId);
+    return tool ? `${tool.title} (${tool.plugin})` : toolId;
+  };
+  const hintOf = (toolId: string, detected: boolean, on: boolean) => {
+    const tool = known(toolId);
+    const state = !detected
+      ? `Not detected. Install or enable the plugin with id ${tool?.pluginId ?? toolId}.`
+      : on
+        ? "Shown inside the Tools pill."
+        : "Shown as its own pill.";
+    return tool ? `${state} ${tool.origin}.` : state;
+  };
 
   async function setMerged(toolId: string, value: boolean) {
     if (settings.status !== "ready") return;
@@ -85,14 +99,8 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
             return (
               <SettingsSwitch
                 key={toolId}
-                label={titleOf(toolId)}
-                hint={
-                  !detected
-                    ? "Not detected. Its plugin is missing, or it is not the hub-aware fork."
-                    : on
-                      ? "Shown inside the Tools pill."
-                      : "Shown as its own pill."
-                }
+                label={labelOf(toolId)}
+                hint={hintOf(toolId, detected, on)}
                 value={on}
                 disabled={!detected || settings.saving}
                 onValueChange={(value) => void setMerged(toolId, value)}
