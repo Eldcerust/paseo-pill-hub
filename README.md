@@ -40,7 +40,9 @@ Open a chat composer and tap **Tools**. Each enabled tool gets a tab:
 - **Export**
 - **Links** — Workspace links
 
-The tabs sit in one row between a left and a right arrow, and the row scrolls instead of wrapping onto several lines. The selected tab is kept in view. Tabs are sorted by name; the **A–Z / Z–A** button beside the search field flips the order, and the hub remembers it until the app reloads. Type in **Search tools** to narrow the row to the tools whose name, title or id contains every word you typed; the tool the search lands on stays selected after you clear it. With nothing chosen yet, the hub opens its first tool (Run), whatever the sort order.
+Above the tool there is one header row: a magnifier, the tabs between a left and a right arrow, and an **A–Z / Z–A** button. The tabs scroll sideways instead of wrapping, and the selected tab is kept in view. Tabs are sorted by name; the sort button flips the order, and the hub remembers it until the app reloads. Tap the magnifier to open a search field in the same row, and the tabs narrow to the tools whose name, title or id contains every word you typed. The tool the search lands on stays selected after you close the field with the **X**. With nothing chosen yet, the hub opens its first tool (Run), whatever the sort order.
+
+The header is deliberately a single row. Paseo caps a plugin popover at 440px and scrolls anything taller, and a tool sizes its own body (Switch asks for up to 340px). A second header line would push the tool past the cap and make the whole popover scroll, so the hub never adds one.
 
 A tool that is switched off, or whose plugin is not running, keeps its own composer pill. The switches are in **Settings → Pill hub**, in the sidebar's **Pill hub** row, and in the Command Center.
 

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import type { HubEntry } from "./bus";
 import { canScroll, revealOffset, stepOffset, type Direction, type Slot, type StripMetrics } from "./strip";
+import { CONTROL_HEIGHT } from "./tool-search";
 
 function Tab({
   entry,
@@ -38,11 +39,11 @@ function Tab({
       onPress={onPress}
       onLayout={onLayout}
       style={{
+        height: CONTROL_HEIGHT,
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
         paddingHorizontal: 12,
-        paddingVertical: 8,
         borderRadius: 999,
         backgroundColor: active ? colors.accent : colors.surface1,
         opacity: entry.disabled ? 0.5 : 1,
@@ -120,7 +121,7 @@ export function ToolStrip({
   const step = (direction: Direction) => scroller.current?.scrollTo({ x: stepOffset(metrics.current, direction), animated: true });
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+    <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 }}>
       <Arrow direction="back" enabled={edges.back} onPress={() => step("back")} theme={theme} />
       <ScrollView
         ref={scroller}
