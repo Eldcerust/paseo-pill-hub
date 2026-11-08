@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { KNOWN_TOOLS, hubSettings } from "../shared/config";
 import { getBus } from "./bus";
 import { HeightSection } from "./height-section";
+import { HostLookProvider } from "./host-look";
 import { activeHub } from "./hub";
 import { SyncSection } from "./sync-section";
 
@@ -96,6 +97,7 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
   }
 
   return (
+    <HostLookProvider value={{ theme, layout }}>
     <View style={{ padding, gap: 16 }}>
       <SettingsSection title="Tools pill">
         <SettingsCard>
@@ -124,5 +126,6 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
       ) : null}
       {settings.saveError ? <Text accessibilityRole="alert" style={text}>{settings.saveError}</Text> : null}
     </View>
+    </HostLookProvider>
   );
 }
