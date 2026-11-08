@@ -1,9 +1,10 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import type { z } from "zod";
-import { DEFAULT_AI_MODEL, aiDefaults, getConfig, hubSettings, syncDefaults } from "./shared/config";
+import { DEFAULT_AI_MODEL, FIX_AGENT, aiDefaults, getConfig, hubSettings, syncDefaults } from "./shared/config";
 import { FORKS } from "./shared/forks";
-import { syncApply, syncCheck, syncModels, syncStage, syncStatus } from "./shared/sync";
+import { syncApply, syncCheck, syncFix, syncModels, syncStage, syncStatus } from "./shared/sync";
 import { createEngine } from "./server/sync/engine";
+import { fixPrompt, needsAttention } from "./server/sync/fix";
 import { exec } from "./server/sync/exec";
 import { listAiModels, paseoLlm, type Paseo } from "./server/sync/paseo-llm";
 import { defaultChecks, fetchBytes, fetchJson, pluginDirFromConfig } from "./server/sync/runtime";
@@ -26,9 +27,17 @@ export default function contribute(server: PluginServerContext) {
   const remember = (context: { paseo: Paseo }) => {
     daemon = context.paseo;
   };
+  // The folder of the last agent seen is "this workspace": the fix agent starts there.
+  let workspaceFolder: string | undefined;
   const stopListening = [
-    server.on("agent.created", (_event, context) => remember(context)),
-    server.on("agent.turn_ended", (_event, context) => remember(context)),
+    server.on("agent.created", (event, context) => {
+      remember(context);
+      workspaceFolder = event.agent.cwd || workspaceFolder;
+    }),
+    server.on("agent.turn_ended", (event, context) => {
+      remember(context);
+      workspaceFolder = event.agent.cwd || workspaceFolder;
+    }),
   ];
 
   /** The model to adapt with, or undefined when AI adaptation is off or the daemon has not been seen yet. */
@@ -39,7 +48,8 @@ export default function contribute(server: PluginServerContext) {
     return paseoLlm(paseo, current.ai.model || DEFAULT_AI_MODEL);
   }
 
-  const engine = createEngine({ exec, pluginDir: pluginDirFromConfig(), fetchJson, fetchBytes, checks: defaultChecks(), llm });
+  const pluginDir = pluginDirFromConfig();
+  const engine = createEngine({ exec, pluginDir, fetchJson, fetchBytes, checks: defaultChecks(), llm });
   const report = async () => ({ forks: await engine.status() });
 
   /** Looks at every upstream and, when asked to, stages each update it finds, one at a time. */
@@ -89,6 +99,21 @@ export default function contribute(server: PluginServerContext) {
     // Staging installs packages, so it runs in the background; the screen polls for the outcome.
     void engine.stage(toolId).catch((error) => console.error("[pill-hub] staging failed", error));
     return report();
+  });
+  server.handle(syncFix, async (_input, context) => {
+    remember(context);
+    const folder = workspaceFolder;
+    if (!folder) throw new Error("No workspace seen yet. Send a message in an agent in the workspace you want, then try again.");
+    const broken = (await engine.status()).filter(needsAttention);
+    if (broken.length === 0) throw new Error("Nothing needs attention.");
+    const agent = await context.paseo.agents.create({
+      config: { provider: FIX_AGENT },
+      cwd: folder,
+      title: `[Pill hub] fix ${broken.length} plugin ${broken.length === 1 ? "fork" : "forks"}`,
+      prompt: fixPrompt(broken, { pluginDir, specs: FORKS }, folder),
+      labels: { "pill-hub": "fix" },
+    });
+    return { agentId: agent.id, covered: broken.length, folder };
   });
   server.handle(syncModels, async (_input, context) => {
     remember(context);

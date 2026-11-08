@@ -59,6 +59,9 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
   },
 ];
 
+/** The agent that "Fix with an agent" starts, as provider/model. */
+export const FIX_AGENT = "claude/claude-sonnet-5-5";
+
 export const syncDefaults = { autoCheck: true, checkEveryHours: 6, autoStage: true };
 /**
  * The model an update is adapted with when none is chosen. It is an id from the daemon's OpenCode

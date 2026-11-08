@@ -49,3 +49,10 @@ export const syncApply = defineRpc({
   input: z.object({ toolId: z.string() }),
   output: z.object({ message: z.string(), status: statusOut }),
 });
+
+/** Hands every fork that needs attention, with its status, to a new agent in the current workspace. */
+export const syncFix = defineRpc({
+  name: "sync.fix",
+  input: z.object({}),
+  output: z.object({ agentId: z.string(), covered: z.number(), folder: z.string() }),
+});

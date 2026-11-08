@@ -21,6 +21,11 @@ export function actionFor(fork: ForkStatus): SyncAction | undefined {
   }
 }
 
+/** True when a fork is in a state that "Fix with an agent" should pick up. */
+export function needsFix(fork: ForkStatus): boolean {
+  return fork.kind !== "own" && ["unknown", "update-available", "staged", "conflict", "check-failed", "error"].includes(fork.state);
+}
+
 export function ago(iso: string | undefined, now: Date): string | undefined {
   if (!iso) return undefined;
   const minutes = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60_000));

@@ -3,9 +3,9 @@ import { SettingsAction, SettingsCard, SettingsRow, SettingsSection, SettingsSel
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 import { KNOWN_TOOLS, type hubSettings } from "../shared/config";
-import { syncApply, syncCheck, syncStage, syncStatus } from "../shared/sync";
+import { syncApply, syncCheck, syncFix, syncStage, syncStatus } from "../shared/sync";
 import { AiSection } from "./ai-section";
-import { actionFor, describeFork } from "./sync-text";
+import { actionFor, describeFork, needsFix } from "./sync-text";
 
 type HubValues = z.output<typeof hubSettings.schema>;
 
@@ -25,6 +25,7 @@ export function SyncSection({ values, saving, save }: { values: HubValues; savin
   const check = useRpc(syncCheck);
   const stage = useRpc(syncStage);
   const apply = useRpc(syncApply);
+  const fix = useRpc(syncFix);
 
   // Staging runs in the background, so poll quickly while anything is working and slowly otherwise.
   const status = useQuery({
@@ -44,7 +45,12 @@ export function SyncSection({ values, saving, save }: { values: HubValues; savin
     },
     onError: fail,
   });
-  const busy = checking.isPending || staging.isPending || applying.isPending;
+  const fixing = useMutation({
+    mutationFn: () => fix({}),
+    onSuccess: (result) => toast.show(`Started an agent for ${result.covered} ${result.covered === 1 ? "fork" : "forks"} in ${result.folder}`),
+    onError: fail,
+  });
+  const busy = fixing.isPending || checking.isPending || staging.isPending || applying.isPending;
 
   const set = (patch: Partial<HubValues>) => void save({ ...values, ...patch });
   const now = new Date();
@@ -60,6 +66,13 @@ export function SyncSection({ values, saving, save }: { values: HubValues; savin
             actionLabel={checking.isPending ? "Checking…" : "Check now"}
             disabled={busy}
             onPress={() => checking.mutate()}
+          />
+          <SettingsAction
+            label="Fix with an agent"
+            hint="Sends every fork that needs attention, with its current status, to a new agent in this workspace. It finds the cause, fixes it, pushes and updates the plugins."
+            actionLabel={fixing.isPending ? "Starting…" : "Fix all"}
+            disabled={busy || !forks.some(needsFix)}
+            onPress={() => fixing.mutate()}
           />
           {forks.map((fork) => {
             const tool = KNOWN_TOOLS.find((candidate) => candidate.toolId === fork.toolId);
