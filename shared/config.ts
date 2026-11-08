@@ -59,12 +59,37 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
   },
 ];
 
-/** A tool missing from `merged` follows the default: merged into the hub pill. */
+export const syncDefaults = { autoCheck: true, checkEveryHours: 6, autoStage: true };
+export const aiDefaults = { enabled: false, baseUrl: "", model: "", apiKey: "" };
+
+/**
+ * `merged`: a tool missing from it follows the default, merged into the hub pill.
+ * `sync`: how the forks follow their upstreams. `ai`: an optional OpenAI-compatible model that
+ * adapts a fork when an update conflicts or stops type-checking. Settings are plain host-side
+ * JSON, not a credential vault, so the key is stored as ordinary text.
+ */
 export const hubSettings = defineSettings({
   id: "hub",
   scope: "host",
   version: 1,
-  schema: z.object({ merged: z.record(z.string(), z.boolean()).default({}) }),
+  schema: z.object({
+    merged: z.record(z.string(), z.boolean()).default({}),
+    sync: z
+      .object({
+        autoCheck: z.boolean().default(syncDefaults.autoCheck),
+        checkEveryHours: z.number().int().min(1).max(168).default(syncDefaults.checkEveryHours),
+        autoStage: z.boolean().default(syncDefaults.autoStage),
+      })
+      .default(syncDefaults),
+    ai: z
+      .object({
+        enabled: z.boolean().default(aiDefaults.enabled),
+        baseUrl: z.string().trim().max(300).default(aiDefaults.baseUrl),
+        model: z.string().trim().max(200).default(aiDefaults.model),
+        apiKey: z.string().trim().max(500).default(aiDefaults.apiKey),
+      })
+      .default(aiDefaults),
+  }),
 });
 
 export const getConfig = defineRpc({
