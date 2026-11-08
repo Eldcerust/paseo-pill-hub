@@ -1,12 +1,12 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import type { z } from "zod";
-import { DEFAULT_AI_MODEL, FIX_AGENT, aiDefaults, getConfig, heightDefaults, hubSettings, syncDefaults } from "./shared/config";
+import { DEFAULT_AI_MODEL, aiDefaults, getConfig, heightDefaults, hubSettings, syncDefaults } from "./shared/config";
 import { FORKS } from "./shared/forks";
 import { syncApply, syncCheck, syncFix, syncModels, syncStage, syncStatus } from "./shared/sync";
 import { createEngine } from "./server/sync/engine";
 import { fixPrompt, needsAttention } from "./server/sync/fix";
 import { exec } from "./server/sync/exec";
-import { listAiModels, paseoLlm, type Paseo } from "./server/sync/paseo-llm";
+import { aiAgentProvider, listAiModels, paseoLlm, type Paseo } from "./server/sync/paseo-llm";
 import { defaultChecks, fetchBytes, fetchJson, pluginDirFromConfig } from "./server/sync/runtime";
 
 type HubValues = z.output<typeof hubSettings.schema>;
@@ -110,7 +110,8 @@ export default function contribute(server: PluginServerContext) {
     const broken = (await engine.status()).filter(needsAttention);
     if (broken.length === 0) throw new Error("Nothing needs attention.");
     const agent = await context.paseo.agents.create({
-      config: { provider: FIX_AGENT },
+      // The model chosen in the AI section, or its default; the agent edits and pushes, so it keeps the normal mode.
+      config: { provider: aiAgentProvider(current.ai.model || DEFAULT_AI_MODEL) },
       cwd: folder,
       title: `[Pill hub] fix ${broken.length} plugin ${broken.length === 1 ? "fork" : "forks"}`,
       prompt: fixPrompt(broken, { pluginDir, specs: FORKS }, folder),

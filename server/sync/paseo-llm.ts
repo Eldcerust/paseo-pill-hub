@@ -9,6 +9,9 @@ export type Paseo = PluginHandlerContext["paseo"];
 /** The agent provider in the Paseo daemon that the sync asks. Its models are listed by the daemon. */
 export const AI_PROVIDER = "opencode";
 
+/** The `provider/model` string the daemon wants, for a model id from its OpenCode list. */
+export const aiAgentProvider = (model: string) => `${AI_PROVIDER}/${model}`;
+
 const ANSWER_WITHIN_MS = 5 * 60_000;
 const WAIT_SLICE_MS = 20_000;
 const MAX_DENIALS = 20;
@@ -74,7 +77,7 @@ export function paseoLlm(paseo: Paseo, model: string, answerWithinMs = ANSWER_WI
     let agent: Agent | undefined;
     try {
       agent = await paseo.agents.create({
-        config: { provider: `${AI_PROVIDER}/${model}`, modeId: "plan" },
+        config: { provider: aiAgentProvider(model), modeId: "plan" },
         cwd: scratch,
         title: "[Pill hub] adapting a fork",
         prompt: flatten(messages),

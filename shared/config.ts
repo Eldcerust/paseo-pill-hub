@@ -59,9 +59,6 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
   },
 ];
 
-/** The agent that "Fix with an agent" starts, as provider/model. */
-export const FIX_AGENT = "claude/claude-sonnet-5-5";
-
 /** The platforms Paseo reports in `layout.platform`. The desktop app and the browser are both "web". */
 export const HEIGHT_PLATFORMS = ["web", "ios", "android"] as const;
 export type HeightPlatform = (typeof HEIGHT_PLATFORMS)[number];
