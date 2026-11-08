@@ -62,6 +62,27 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
 /** The agent that "Fix with an agent" starts, as provider/model. */
 export const FIX_AGENT = "claude/claude-sonnet-5-5";
 
+/** The platforms Paseo reports in `layout.platform`. The desktop app and the browser are both "web". */
+export const HEIGHT_PLATFORMS = ["web", "ios", "android"] as const;
+export type HeightPlatform = (typeof HEIGHT_PLATFORMS)[number];
+export type Heights = Record<HeightPlatform, number>;
+
+/** The smallest and largest tool-area height that can be set. 0 means no limit. */
+export const HEIGHT_MIN = 120;
+export const HEIGHT_MAX = 2000;
+
+/**
+ * How tall the tool area under the tab row may get, in px; taller tools scroll inside it.
+ *
+ * Desktop: Paseo caps a plugin popover at 440px and scrolls the whole thing beyond that. About 32px
+ * of that is the popover's own padding and the tab row takes 44, so 350 leaves a little to spare and
+ * is enough for Switch's 340px picker.
+ * Phones: the popover is a bottom sheet with no such cap, so they get more room.
+ */
+export const heightDefaults: Heights = { web: 350, ios: 400, android: 400 };
+
+const validHeight = (value: number) => value === 0 || (value >= HEIGHT_MIN && value <= HEIGHT_MAX);
+
 export const syncDefaults = { autoCheck: true, checkEveryHours: 6, autoStage: true };
 /**
  * The model an update is adapted with when none is chosen. It is an id from the daemon's OpenCode
@@ -75,6 +96,7 @@ export const aiDefaults = { enabled: false, model: "" };
  * `sync`: how the forks follow their upstreams. `ai`: whether the OpenCode agent already running
  * in the Paseo daemon may adapt a fork when an update conflicts or stops type-checking, and
  * which of its models to use. No API key is involved; the daemon's own OpenCode setup is used.
+ * `heights`: the tallest the tool area may be on each platform, in px; 0 is no limit.
  */
 export const hubSettings = defineSettings({
   id: "hub",
@@ -95,11 +117,22 @@ export const hubSettings = defineSettings({
         model: z.string().trim().max(300).default(aiDefaults.model),
       })
       .default(aiDefaults),
+    heights: z
+      .object({
+        web: z.number().int().refine(validHeight).default(heightDefaults.web),
+        ios: z.number().int().refine(validHeight).default(heightDefaults.ios),
+        android: z.number().int().refine(validHeight).default(heightDefaults.android),
+      })
+      .default(heightDefaults),
   }),
 });
 
 export const getConfig = defineRpc({
   name: "hub.config",
   input: z.object({}),
-  output: z.object({ merged: z.record(z.string(), z.boolean()) }),
+  // `heights` is optional so a client and a server that are briefly on different versions still agree.
+  output: z.object({
+    merged: z.record(z.string(), z.boolean()),
+    heights: z.object({ web: z.number(), ios: z.number(), android: z.number() }).optional(),
+  }),
 });

@@ -1,6 +1,6 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import type { z } from "zod";
-import { DEFAULT_AI_MODEL, FIX_AGENT, aiDefaults, getConfig, hubSettings, syncDefaults } from "./shared/config";
+import { DEFAULT_AI_MODEL, FIX_AGENT, aiDefaults, getConfig, heightDefaults, hubSettings, syncDefaults } from "./shared/config";
 import { FORKS } from "./shared/forks";
 import { syncApply, syncCheck, syncFix, syncModels, syncStage, syncStatus } from "./shared/sync";
 import { createEngine } from "./server/sync/engine";
@@ -16,7 +16,7 @@ const FIRST_CHECK_DELAY = 30_000;
 
 export default function contribute(server: PluginServerContext) {
   const settings = server.registerSettings(hubSettings);
-  let current: HubValues = { merged: {}, sync: syncDefaults, ai: aiDefaults };
+  let current: HubValues = { merged: {}, sync: syncDefaults, ai: aiDefaults, heights: heightDefaults };
   let scheduleKey = "";
   let first: ReturnType<typeof setTimeout> | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -79,10 +79,13 @@ export default function contribute(server: PluginServerContext) {
   void settings.read().then(applySettings, (error) => console.error("[pill-hub] could not read settings", error));
   const stopWatching = settings.subscribe(applySettings);
 
-  // The client entry cannot read settings outside React, so it asks the daemon for the switches.
+  // The client entry cannot read settings outside React, so it asks the daemon for the switches
+  // and the tool-area heights.
   server.handle(getConfig, async () => {
     const state = await settings.read();
-    return { merged: state.status === "ready" ? state.values.merged : {} };
+    return state.status === "ready"
+      ? { merged: state.values.merged, heights: state.values.heights }
+      : { merged: {}, heights: heightDefaults };
   });
   server.handle(syncStatus, async (_input, context) => {
     remember(context);

@@ -42,7 +42,19 @@ Open a chat composer and tap **Tools**. Each enabled tool gets a tab:
 
 Above the tool there is one header row: a magnifier, the tabs between a left and a right arrow, and an **A–Z / Z–A** button. The tabs scroll sideways instead of wrapping, and the selected tab is kept in view. Tabs are sorted by name; the sort button flips the order, and the hub remembers it until the app reloads. Tap the magnifier to open a search field in the same row, and the tabs narrow to the tools whose name, title or id contains every word you typed. The tool the search lands on stays selected after you close the field with the **X**. With nothing chosen yet, the hub opens its first tool (Run), whatever the sort order.
 
-The header is deliberately a single row. Paseo caps a plugin popover at 440px and scrolls anything taller, and a tool sizes its own body (Switch asks for up to 340px). A second header line would push the tool past the cap and make the whole popover scroll, so the hub never adds one.
+The header is deliberately a single row. Paseo caps a plugin popover on a computer at 440px and scrolls anything taller, and a tool sizes its own body (Switch asks for up to 340px). A second header line would push the tool past the cap and make the whole popover scroll, so the hub never adds one.
+
+### Tool height
+
+**Settings → Pill hub → Tool height** sets the tallest the tool under the tabs may get, in px, separately for **PC** (the desktop app and the browser), **iOS** and **Android**. A taller tool scrolls inside that height, under the pinned tab row, so the popover itself does not. A tool shorter than the limit keeps its own height. Leave a field blank for no limit; otherwise use 120 to 2000.
+
+| Platform | Default | Why |
+| --- | --- | --- |
+| PC | 350 px | The 440px popover cap, minus about 32px of padding and the 44px tab row, leaves room for Switch's 340px picker. |
+| iOS | 400 px | A phone popover is a bottom sheet, which has no such cap. |
+| Android | 400 px | Same as iOS. |
+
+The values are stored on the host, so every device of a platform shares one, and a change applies to open popovers without a reload. **Reset** puts the defaults back.
 
 A tool that is switched off, or whose plugin is not running, keeps its own composer pill. The switches are in **Settings → Pill hub**, in the sidebar's **Pill hub** row, and in the Command Center.
 

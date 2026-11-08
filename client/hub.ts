@@ -1,7 +1,8 @@
 import type { PluginButtonRegistration, PluginClientContext } from "@getpaseo/plugin/client";
-import { getConfig } from "../shared/config";
+import { getConfig, heightDefaults, type Heights } from "../shared/config";
 import { getBus, notify, type HubApi } from "./bus";
 import { observeDirectory } from "./directory";
+import { setHeights } from "./heights";
 import { HubPopover } from "./popover";
 import { clearEntry, groupEntries, groupWorkspace, resetStore, setEntry, setGroupChangeHandler } from "./store";
 
@@ -11,6 +12,8 @@ const CONFIG_RETRY_MS = 3_000;
 export interface HubController {
   /** Applies a merge map locally, as soon as the settings screen saves it. */
   applyConfig(merged: Record<string, boolean>): void;
+  /** Applies the tool-area height limits locally, as soon as the settings screen saves them. */
+  applyHeights(heights: Heights): void;
   stop(): void;
 }
 
@@ -81,9 +84,15 @@ export function startHub(client: PluginClientContext): HubController {
     notify(bus);
   }
 
+  function applyHeights(next: Heights) {
+    if (!stopped) setHeights(next);
+  }
+
   async function loadConfig(retry: boolean) {
     try {
-      applyConfig((await client.rpc(getConfig, {})).merged);
+      const config = await client.rpc(getConfig, {});
+      applyConfig(config.merged);
+      applyHeights(config.heights ?? heightDefaults);
     } catch (error) {
       if (stopped) return;
       console.error("[pill-hub] could not read the merge settings", error);
@@ -135,6 +144,7 @@ export function startHub(client: PluginClientContext): HubController {
 
   const controller: HubController = {
     applyConfig,
+    applyHeights,
     stop() {
       if (stopped) return;
       stopped = true;

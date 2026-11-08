@@ -1,7 +1,9 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import type { PluginButtonContentProps } from "@getpaseo/plugin/client";
+import { ScrollView } from "@getpaseo/plugin/client/ui";
 import { Component, useCallback, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Text, View } from "react-native";
+import { currentHeights, heightFor, subscribeHeights } from "./heights";
 import { groupEntries, recallSelection, recallSort, rememberSelection, rememberSort, subscribeGroup } from "./store";
 import { activeTool, filterTools, sortTools } from "./tabs";
 import { SortButton, ToolSearch } from "./tool-search";
@@ -40,6 +42,7 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState(recallSort);
+  const limit = heightFor(useSyncExternalStore(subscribeHeights, currentHeights), layout.platform);
 
   const width = layout.compact ? "100%" : 392;
   if (entries.length === 0) {
@@ -77,10 +80,17 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   };
   const Body = active?.Content;
 
-  // The host caps a plugin popover at 440px and scrolls anything taller, and a tool sizes its own
-  // body (Switch asks for up to 340px). So everything the hub adds above the tool is this one row:
-  // searching expands the magnifier in place and a "no match" note takes the strip's place. Never a
-  // second line, or the tool no longer fits and the whole popover scrolls.
+  // The host caps a plugin popover at 440px and scrolls anything taller. So everything the hub adds
+  // above the tool is this one row (searching expands the magnifier in place and a "no match" note
+  // takes the strip's place), and the tool area has its own height limit from the Pill hub settings.
+  // A taller tool scrolls inside that limit, under the pinned row, so the popover itself never does.
+  const tool =
+    active && Body ? (
+      <ToolBoundary key={active.toolId} name={active.title} theme={theme}>
+        <Body {...props} />
+      </ToolBoundary>
+    ) : null;
+
   return (
     <View style={{ width, gap: 10 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -98,11 +108,13 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
         )}
         <SortButton direction={direction} onPress={toggleSort} theme={theme} />
       </View>
-      {active && Body ? (
-        <ToolBoundary key={active.toolId} name={active.title} theme={theme}>
-          <Body {...props} />
-        </ToolBoundary>
-      ) : null}
+      {tool && limit ? (
+        <ScrollView style={{ maxHeight: limit }} nestedScrollEnabled showsVerticalScrollIndicator>
+          {tool}
+        </ScrollView>
+      ) : (
+        tool
+      )}
     </View>
   );
 }

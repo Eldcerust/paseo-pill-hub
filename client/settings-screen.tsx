@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
 import { KNOWN_TOOLS, hubSettings } from "../shared/config";
 import { getBus } from "./bus";
+import { HeightSection } from "./height-section";
 import { activeHub } from "./hub";
 import { SyncSection } from "./sync-section";
 
@@ -40,11 +41,15 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
   const settings = useSettings(hubSettings);
   const announced = useAnnounced();
   const merged = settings.status === "ready" ? settings.values.merged : undefined;
+  const heights = settings.status === "ready" ? settings.values.heights : undefined;
 
-  // Hand the stored switches to the running hub; it ignores them when nothing changed.
+  // Hand the stored switches and heights to the running hub; it ignores them when nothing changed.
   useEffect(() => {
     if (merged) activeHub()?.applyConfig(merged);
   }, [merged]);
+  useEffect(() => {
+    if (heights) activeHub()?.applyHeights(heights);
+  }, [heights]);
 
   const text = { color: theme.colors.foreground };
   const padding = layout.compact ? 16 : 24;
@@ -110,6 +115,7 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
           })}
         </SettingsCard>
       </SettingsSection>
+      <HeightSection values={settings.values} saving={settings.saving} save={(next) => settings.save(next, settings.revision)} />
       <SyncSection values={settings.values} saving={settings.saving} save={(next) => settings.save(next, settings.revision)} />
       {announced.size === 0 ? (
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13 }}>
