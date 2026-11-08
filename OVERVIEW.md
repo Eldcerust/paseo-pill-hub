@@ -1,4 +1,4 @@
-Pill hub collapses the composer pills from other plugins into one Tools pill. Tapping it opens a popover with a tab for each tool, and the selected tool's own popover shows underneath. It is meant for small screens, where several pills crowd the chat.
+Pill hub collapses the composer pills from other plugins into one Tools pill. Tapping it opens a popover with a search field and one row of tabs, a tab for each tool. Arrows at either end scroll the row, a button flips the tabs between A–Z and Z–A, and typing in the search field narrows the row to the tool you want. The selected tool's own popover shows underneath. It is meant for small screens, where several pills crowd the chat.
 
 Paseo has no way for one plugin to hide another plugin's pill, so this works by cooperation. A plugin that supports the hub checks whether it is running and whether its tool is switched on. If both are true, it hands its popover to the hub. Otherwise it adds its own pill exactly as before, so stopping or disabling the hub brings every pill back.
 

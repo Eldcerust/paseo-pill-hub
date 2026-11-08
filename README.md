@@ -40,6 +40,8 @@ Open a chat composer and tap **Tools**. Each enabled tool gets a tab:
 - **Export**
 - **Links** — Workspace links
 
+The tabs sit in one row between a left and a right arrow, and the row scrolls instead of wrapping onto several lines. The selected tab is kept in view. Tabs are sorted by name; the **A–Z / Z–A** button beside the search field flips the order, and the hub remembers it until the app reloads. Type in **Search tools** to narrow the row to the tools whose name, title or id contains every word you typed; the tool the search lands on stays selected after you clear it. With nothing chosen yet, the hub opens its first tool (Run), whatever the sort order.
+
 A tool that is switched off, or whose plugin is not running, keeps its own composer pill. The switches are in **Settings → Pill hub**, in the sidebar's **Pill hub** row, and in the Command Center.
 
 Paseo cannot hide one plugin's pill from another, so this works by cooperation:

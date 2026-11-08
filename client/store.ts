@@ -1,6 +1,10 @@
 import type { HubEntry } from "./bus";
+import type { SortDirection } from "./tabs";
 
-/** Tabs appear in this order; tools the hub does not know sort after them, alphabetically. */
+/**
+ * The hub's own order, used when nothing is chosen yet: the first usable tool here opens first.
+ * Tools the hub does not know sort after these, alphabetically. The tab strip shows A–Z or Z–A.
+ */
 const ORDER = ["run", "skills", "switch", "export", "workspace-links"];
 
 const NONE: readonly HubEntry[] = [];
@@ -93,6 +97,17 @@ export function rememberSelection(agentId: string, toolId: string): void {
 
 export function recallSelection(agentId: string): string | undefined {
   return selection.get(agentId);
+}
+
+/** The tab order the user last picked. It is a display preference, so a hub restart keeps it. */
+let sortDirection: SortDirection = "asc";
+
+export function recallSort(): SortDirection {
+  return sortDirection;
+}
+
+export function rememberSort(direction: SortDirection): void {
+  sortDirection = direction;
 }
 
 /** Drops every entry, for when the hub stops and the forks fall back to their own pills. */
