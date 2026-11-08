@@ -51,6 +51,8 @@ The hub checks every few hours and, if you leave it on, stages each update it fi
 Optional, off by default, and no API key: it uses the OpenCode agent that already runs in your Paseo daemon (`paseo providers` lists it as `opencode`). When an update conflicts or stops type-checking, the hub creates a read-only (plan mode) agent in an empty scratch folder, sends it the conflicting or failing files plus a short description of what the fork changes on purpose, reads its reply, and archives the agent and its workspace. The model may only return files it was sent, whole, with no conflict markers. The result is type-checked again, marked AI-assisted, and still waits for you to apply it. The affected files go to whichever model you choose.
 
 Choose the model on the Pill hub screen: Load models lists what the daemon's OpenCode offers (over a thousand, so it is searched; with no search it shows OpenCode's own). The default is `opencode/deepseek-v4.1-flash`. The daemon connection reaches the plugin with each request and lifecycle event, so a background check before any has been seen reports the model as unavailable; open the Pill hub screen once and press Retry.
+
+The adapter is an ordinary top-level agent in the daemon while it runs, so a plugin that notifies on every agent turn (for example Telegram notifications) may report it as running and finished. The hub does not mute those notices. Archiving the agent when the reply arrives does not retract a notice already sent.
 To follow a new fork, add a row to `FORKS` in `shared/forks.ts`. For an npm fork, its repository needs a commit whose subject starts with `Import `, which is where the vendor branch begins.
 
 ## Development
