@@ -9,7 +9,13 @@
  *      the plugin called `client.addComposerPill({ id, agentId, workspaceId, button })`.
  *   2. In popover code, import `useRpc` / `usePaseo` (and any other plugin-scoped hook the
  *      popover uses) from this file instead of `@getpaseo/plugin/client`.
- *   3. Nothing else. `toolId` must equal the pill id the plugin used before.
+ *   3. Settings are scoped to the plugin that owns them, so a popover that reads or writes
+ *      them with `useSettings` cannot do that from inside the hub. Branch on
+ *      `useHostedClient()`: when it returns a client, show a link that calls
+ *      `client.openSettings(id)` (register that screen with `addSettingsScreen`), or read
+ *      the values through an RPC. When it returns null, behave as before.
+ *
+ * `toolId` must equal the pill id the plugin used before.
  *
  * Why step 2: a popover shown inside the hub is mounted under the hub's providers, so the
  * host's own `useRpc` would send the call to the hub's backend. Inside the hub these wrappers
@@ -118,6 +124,11 @@ export const usePaseo: typeof hostUsePaseo = () => {
   const bridge = useContext(BridgeContext);
   return bridge ? bridge.client.paseo : real;
 };
+
+/** The owning plugin's client while the hub hosts this component, otherwise null. */
+export function useHostedClient(): PluginClientContext | null {
+  return useContext(BridgeContext)?.client ?? null;
+}
 
 export interface ComposerPillSpec {
   /** The pill id the plugin used before. It names the tool in the hub's settings. */
