@@ -1,0 +1,9 @@
+{
+  "id": "pill-hub",
+  "name": "Pill hub",
+  "description": "Collapses composer pills from cooperating plugins into one expandable Tools pill with a selector.",
+  "media": [],
+  "requirements": {
+    "paseo": ">=0.15.3"
+  }
+}
