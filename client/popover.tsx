@@ -66,7 +66,16 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   const entries = useSyncExternalStore(subscribe, () => groupEntries(agentId));
   const [chosen, setChosen] = useState(() => recallSelection(agentId));
   const active = activeTool(entries, chosen);
-  if (!active) return null;
+  if (!active) {
+    return (
+      <View style={{ width: layout.compact ? "100%" : 392, gap: 6 }}>
+        <Text style={{ color: theme.colors.foreground, fontSize: 14, fontWeight: "600" }}>No tools detected</Text>
+        <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13 }}>
+          No hub-aware plugin has reported in for this chat. Check the Pill hub settings and reload the plugins.
+        </Text>
+      </View>
+    );
+  }
   const Body = active.Content;
   return (
     <View style={{ width: layout.compact ? "100%" : 392, gap: 12 }}>
