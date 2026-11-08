@@ -1,5 +1,5 @@
-import { useSettings, type PluginSurfaceProps } from "@getpaseo/plugin/client";
-import { SettingsCard, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
+import { useSettings, type PluginHostProps, type PluginScreenProps, type PluginSurfaceProps } from "@getpaseo/plugin/client";
+import { ScrollView, SettingsCard, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { useEffect, useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
 import { KNOWN_TOOLS, hubSettings } from "../shared/config";
@@ -19,7 +19,23 @@ function useAnnounced(): Set<string> {
   return new Set(key ? key.split(",") : []);
 }
 
+/** The tab on Paseo's Settings page. Paseo owns the header and scrolling there. */
 export function HubSettingsScreen({ theme, layout }: PluginSurfaceProps) {
+  return <HubSwitches theme={theme} layout={layout} />;
+}
+
+/** The sidebar screen, opened from the Pill hub row. It owns its own scrolling and background. */
+export function HubScreen({ theme, layout }: PluginScreenProps) {
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.surface0 }}>
+      <ScrollView>
+        <HubSwitches theme={theme} layout={layout} />
+      </ScrollView>
+    </View>
+  );
+}
+
+function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout">) {
   const settings = useSettings(hubSettings);
   const announced = useAnnounced();
   const merged = settings.status === "ready" ? settings.values.merged : undefined;
