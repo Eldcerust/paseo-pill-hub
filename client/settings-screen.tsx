@@ -101,6 +101,11 @@ function HubSwitches({ theme, layout }: Pick<PluginHostProps, "theme" | "layout"
           })}
         </SettingsCard>
       </SettingsSection>
+      {announced.size === 0 ? (
+        <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13 }}>
+          No hub-aware plugin has reported in. Reload them, or this app may be isolating plugins from each other.
+        </Text>
+      ) : null}
       {settings.saveError ? <Text accessibilityRole="alert" style={text}>{settings.saveError}</Text> : null}
     </View>
   );

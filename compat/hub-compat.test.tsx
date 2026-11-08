@@ -1,4 +1,5 @@
 import type { PluginButton, PluginClientContext } from "@getpaseo/plugin/client";
+import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The host modules need React Native; the placement logic under test does not.
@@ -59,11 +60,28 @@ const popoverButton = (): PluginButton => ({
 });
 const spec = (button: PluginButton = popoverButton()) => ({ toolId: "run", agentId: "a1", workspaceId: "w1", button });
 
-beforeEach(() => {
+function resetBus() {
   delete (globalThis as Record<string, unknown>)[BUS_KEY];
-});
+  delete (React as unknown as Record<string, unknown>)[BUS_KEY];
+}
+
+beforeEach(resetBus);
 
 describe("registerComposerPill", () => {
+  it("meets the hub through the react module when each plugin has its own globalThis", () => {
+    const { client, live } = fakeClient();
+    const hub = fakeHub();
+    // The hub published on react only, as it would if this plugin's global were isolated.
+    Object.defineProperty(React, BUS_KEY, {
+      value: { version: 1, hub: hub.api, tools: new Map(), listeners: new Set() },
+      configurable: true,
+      writable: true,
+    });
+    registerComposerPill(client, spec());
+    expect(live()).toHaveLength(0);
+    expect(hub.live()).toHaveLength(1);
+  });
+
   it("registers the plugin's own pill when no hub is running", () => {
     const { client, live } = fakeClient();
     registerComposerPill(client, spec());

@@ -30,7 +30,7 @@ import {
   type PluginButtonRegistration,
   type PluginClientContext,
 } from "@getpaseo/plugin/client";
-import { createContext, useContext, useMemo, type ComponentType } from "react";
+import React, { createContext, useContext, useMemo, type ComponentType } from "react";
 
 // ---- Bus protocol: keep identical to paseo-pill-hub/client/bus.ts --------------------------
 const BUS_KEY = "__paseoPillHub";
@@ -67,15 +67,29 @@ interface Bus {
   listeners: Set<() => void>;
 }
 
+function carriers(): object[] {
+  const shared: unknown = React;
+  const list: object[] = [];
+  if (shared !== null && (typeof shared === "object" || typeof shared === "function")) list.push(shared as object);
+  list.push(globalThis);
+  return list.filter((carrier) => Object.isExtensible(carrier));
+}
+
 function getBus(): Bus {
-  const slot = globalThis as unknown as Record<string, Bus | undefined>;
-  const existing = slot[BUS_KEY];
+  const places = carriers();
+  const existing = places.map((place) => (place as Record<string, Bus | undefined>)[BUS_KEY]).find(Boolean);
   if (existing) {
     if (existing.version === BUS_VERSION) return existing;
     return { version: BUS_VERSION, tools: new Map(), listeners: new Set() };
   }
   const created: Bus = { version: BUS_VERSION, tools: new Map(), listeners: new Set() };
-  slot[BUS_KEY] = created;
+  for (const place of places) {
+    try {
+      Object.defineProperty(place, BUS_KEY, { value: created, configurable: true, writable: true, enumerable: false });
+    } catch {
+      // A carrier that refuses the property is skipped; the others still carry the bus.
+    }
+  }
   return created;
 }
 

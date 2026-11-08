@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import React, { type ComponentType } from "react";
 import type { PluginButtonContentProps, PluginButtonIcon } from "@getpaseo/plugin/client";
 
 /*
@@ -54,16 +54,35 @@ export interface Bus {
   listeners: Set<() => void>;
 }
 
+/**
+ * Objects every plugin can see. `globalThis` is shared when plugins run in one JS realm. When
+ * the app gives each plugin its own global, the `react` module object is still the one
+ * instance every plugin's hooks depend on, so the bus is published on both.
+ */
+function carriers(): object[] {
+  const shared: unknown = React;
+  const list: object[] = [];
+  if (shared !== null && (typeof shared === "object" || typeof shared === "function")) list.push(shared as object);
+  list.push(globalThis);
+  return list.filter((carrier) => Object.isExtensible(carrier));
+}
+
 /** The shared bus, or a private throwaway when another version already owns the slot. */
 export function getBus(): Bus {
-  const slot = globalThis as unknown as Record<string, Bus | undefined>;
-  const existing = slot[BUS_KEY];
+  const places = carriers();
+  const existing = places.map((place) => (place as Record<string, Bus | undefined>)[BUS_KEY]).find(Boolean);
   if (existing) {
     if (existing.version === BUS_VERSION) return existing;
     return { version: BUS_VERSION, tools: new Map(), listeners: new Set() };
   }
   const created: Bus = { version: BUS_VERSION, tools: new Map(), listeners: new Set() };
-  slot[BUS_KEY] = created;
+  for (const place of places) {
+    try {
+      Object.defineProperty(place, BUS_KEY, { value: created, configurable: true, writable: true, enumerable: false });
+    } catch {
+      // A carrier that refuses the property is skipped; the others still carry the bus.
+    }
+  }
   return created;
 }
 
