@@ -1,7 +1,7 @@
 import type { HubEntry } from "./bus";
 
 /** Tabs appear in this order; tools the hub does not know sort after them, alphabetically. */
-const ORDER = ["run", "skills", "switch", "export"];
+const ORDER = ["run", "skills", "switch", "export", "workspace-links"];
 
 const NONE: readonly HubEntry[] = [];
 

@@ -49,6 +49,14 @@ export const KNOWN_TOOLS: readonly KnownTool[] = [
     pluginId: "paseo-exporter-fork",
     origin: "Your fork of sgoley's Conversation exporter (plugins.paseo.sh/sgoley/exporter)",
   },
+  {
+    toolId: "workspace-links",
+    title: "Links",
+    glyph: "Link2",
+    plugin: "Workspace links (fork)",
+    pluginId: "workspace-links-fork",
+    origin: "Your fork of Steve Castaneda's Workspace links 1.1.2 (plugins.paseo.sh/stevecastaneda/workspace-links)",
+  },
 ];
 
 /** A tool missing from `merged` follows the default: merged into the hub pill. */

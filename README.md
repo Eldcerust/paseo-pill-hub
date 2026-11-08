@@ -25,8 +25,9 @@ The bus protocol section of `hub-compat.tsx` must stay identical to `client/bus.
 | Switch | Switchboard | `switchboard` | `paseo-switchboard` | Your own plugin (`Eldcerust/paseo-provider-switch` on your Forgejo) | `pill-hub-compat` |
 | Export | Conversation exporter (fork) | `paseo-exporter-fork` | `paseo-exporter-fork` | Your fork of sgoley's Conversation exporter (`sgoley/paseo-exporter`, listed at `plugins.paseo.sh/sgoley/exporter`); the official repo is the `upstream` remote | `pill-hub-compat` |
 | Skills | Skills (fork) | `skills-fork` | `paseo-skills-fork` | Your fork of gpambrozio's Skills, imported as published in `@gpambrozio/paseo-skills` 0.4.0 (listed at `plugins.paseo.sh/gpambrozio/skills`) | `main` |
+| Links | Workspace links (fork) | `workspace-links-fork` | `paseo-workspace-links-fork` | Your fork of Steve Castaneda's Workspace links, imported as published in `@stevecastaneda/paseo-workspace-links` 1.1.2 (listed at `plugins.paseo.sh/stevecastaneda/workspace-links`; source in `stevecastaneda/paseo-plugins`) | `main` |
 
-The Export and Skills forks have their own ids so the official plugins (`paseo-exporter`, `skills`) stay installed, disabled, and can be re-enabled to roll back. Do not enable a fork and its official plugin together: both would add the same pill and slash command.
+The Export, Skills and Links forks have their own ids so the official plugins (`paseo-exporter`, `skills`, `workspace-links`) stay installed, disabled, and can be re-enabled to roll back. Workspace links can also place its button in the workspace header; only its composer pill moves into the hub. Do not enable a fork and its official plugin together: both would add the same pill and slash command.
 
 ## Development
 
