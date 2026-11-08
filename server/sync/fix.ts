@@ -10,7 +10,7 @@ export const needsAttention = (fork: ForkStatus): boolean => fork.kind !== "own"
 export function hintFor(fork: ForkStatus): string | undefined {
   const text = fork.detail ?? "";
   if (/rev-parse .* failed: .*Needed a single revision/.test(text) || /not (on|\w+) .*needs to be on/.test(text) || /live folder is on/.test(text)) {
-    return "The hub's sync engine expects the installed plugin folder to be a local clone on a named branch (liveBranch in shared/forks.ts of the paseo-pill-hub repo). Git-installed plugins are managed checkouts on a detached HEAD whose origin is the GitHub fork, so that assumption is stale. Fix the engine or the forks table, not the plugin.";
+    return "The sync engine resolves what the plugin runs from at call time (its branch, or HEAD when detached) and only has the remotes of a managed checkout (origin, the GitHub fork). A message like this means some code path or a forks.ts entry still assumes a named local branch or a remote that checkout lacks. Fix the engine or the forks table, not the plugin.";
   }
   if (fork.state === "conflict") return "A merge with upstream conflicts. Resolve it in a scratch clone of the fork repo, run its checks, then push to the fork's main.";
   if (fork.state === "check-failed") return "The merge is clean but typecheck or tests fail. Adapt the fork's own changes to the new upstream code.";
@@ -33,7 +33,8 @@ export function fixPrompt(forks: readonly ForkStatus[], context: FixContext, fol
       fork.detail ? `  detail: ${fork.detail.replace(/\r?\n/g, " / ")}` : undefined,
       fork.base || fork.latest ? `  installed ${fork.base ?? "?"}, newest upstream ${fork.latest ?? "?"}` : undefined,
       `  installed folder: ${context.pluginDir(fork.pluginId) ?? "not found"}`,
-      spec ? `  configured live branch: ${spec.liveBranch}` : undefined,
+      spec?.source.kind === "git" ? `  upstream followed: ${spec.source.remote}/${spec.source.branch}` : undefined,
+      spec?.source.kind === "npm" ? `  upstream followed: npm ${spec.source.packageName}` : undefined,
       hintFor(fork) ? `  likely cause: ${hintFor(fork)}` : undefined,
     ];
     return parts.filter(Boolean).join("\n");

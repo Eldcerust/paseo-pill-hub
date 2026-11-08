@@ -91,12 +91,14 @@ The hub's server follows each fork's upstream by the strategy that suits it (`sh
 
 | Fork | Upstream | How it is followed |
 | --- | --- | --- |
-| Shell Yeah | Your fork's `origin/main` | A daily GitHub Action on `Eldcerust/shell-yeah` (`scripts/sync-upstream.mjs`) already merges Steve Castaneda's original into `main`. The hub fetches `origin` and merges `origin/main` into `pill-hub-compat`. |
-| Conversation exporter | `upstream` remote (`sgoley/paseo-exporter`) | Fetch, then merge `upstream/main` into `pill-hub-compat`. |
+| Shell Yeah | Your fork's `origin/main` | A daily GitHub Action on `Eldcerust/shell-yeah` (`scripts/sync-upstream.mjs`) already merges Steve Castaneda's original into `main`. The hub fetches `origin` and merges `origin/main` into what the plugin runs from. |
+| Conversation exporter | Your fork's `origin/main` | A GitHub Action on the fork merges `sgoley/paseo-exporter` into `main` every 12 hours. A managed checkout has no `upstream` remote, so the hub follows `origin/main` like Shell Yeah. |
 | Skills, Workspace links | The published npm package | A vendor branch named `upstream` holds one commit per published version, created from the fork's import commit the first time. A new version is added to it and `upstream` is merged, so each update is a real three-way merge against the previous version. |
 | Switchboard | Yours | Nothing to follow. |
 
-An update is merged on its own branch (`pill-hub-sync/<tool>`) in a separate worktree next to the fork, installed with `npm install --ignore-scripts`, and type-checked by starting `tsc` directly. No script from the upstream is run, and npm tarballs are verified against their published checksum. The live folder is untouched until you press Apply, which fast-forwards the live branch and needs a clean tree. Reload the plugin afterwards.
+An update is merged on its own branch (`pill-hub-sync/<tool>`) in a separate worktree next to the fork, installed with `npm install --ignore-scripts`, and type-checked by starting `tsc` directly. No script from the upstream is run, and npm tarballs are verified against their published checksum. The live folder is untouched until you press Apply, which fast-forwards it and needs a clean tree. Reload the plugin afterwards.
+
+"What the plugin runs from" is read from the installed folder at call time: its branch, or `HEAD` for the detached checkout that `paseo plugin install git:...` makes. There is no configured branch name. A detached checkout is replaced from the GitHub fork on the next `paseo plugin update`, so Apply only fast-forwards to a commit a remote already has; a merge that exists only locally (every npm update) has to be pushed to the fork first, then installed with `paseo plugin update <plugin id> --yes`.
 
 Outcomes per fork: up to date, update available, staged, conflict, check failed, error. A conflict or a failed check leaves no branch behind.
 

@@ -33,7 +33,7 @@ export interface Engine {
   check(): Promise<ForkStatus[]>;
   /** Stages an update on its own branch. Resolves when done; the outcome is in `status()`. */
   stage(toolId: string): Promise<void>;
-  /** Fast-forwards the live branch to the staged one. Reload the plugin afterwards. */
+  /** Fast-forwards the live folder to the staged branch. Reload the plugin afterwards. */
   apply(toolId: string): Promise<string>;
 }
 
@@ -123,6 +123,14 @@ export function createEngine(deps: EngineDeps): Engine {
   const refExists = async (dir: string, ref: string) => (await git(dir, ["rev-parse", "--verify", "--quiet", ref])).code === 0;
   const ahead = async (dir: string, from: string, to: string) => Number.parseInt(await gitOut(dir, ["rev-list", "--count", `${from}..${to}`]), 10) || 0;
   const short = (dir: string, rev: string) => gitOut(dir, ["rev-parse", "--short", rev]);
+  /**
+   * What the installed plugin runs from: its branch, or `HEAD` for the detached checkout Paseo makes
+   * when it installs a plugin from git. Never a configured branch name, which such a checkout lacks.
+   */
+  async function liveRef(dir: string): Promise<string> {
+    const branch = await git(dir, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
+    return branch.code === 0 && branch.stdout.trim() ? branch.stdout.trim() : "HEAD";
+  }
 
   function specOf(toolId: string): ForkSpec {
     const spec = forks.find((candidate) => candidate.toolId === toolId);
@@ -169,7 +177,7 @@ export function createEngine(deps: EngineDeps): Engine {
     const job = working.get(spec.toolId);
     if (job) return { ...head, state: "working", detail: job };
     try {
-      const live = spec.liveBranch;
+      const live = await liveRef(dir);
       const info = remote.get(spec.toolId);
       let base: string;
       let latest: string | undefined;
@@ -325,10 +333,8 @@ export function createEngine(deps: EngineDeps): Engine {
 
   async function stageNow(spec: ForkSpec): Promise<Outcome> {
     const dir = dirOf(spec);
-    const live = spec.liveBranch;
+    const live = await liveRef(dir);
     const staging = stagingBranch(spec.toolId);
-    const head = await gitOut(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
-    if (head !== live) throw new Error(`The live folder is on ${head}, not ${live}. Staging does not touch it, but it needs to be on ${live}.`);
 
     working.set(spec.toolId, "Fetching the newest upstream…");
     let target: string;
@@ -428,13 +434,17 @@ export function createEngine(deps: EngineDeps): Engine {
     async apply(toolId) {
       const spec = specOf(toolId);
       const dir = dirOf(spec);
-      const live = spec.liveBranch;
+      const live = await liveRef(dir);
       const staging = stagingBranch(toolId);
       if (working.has(toolId)) throw new Error("An update is being staged right now.");
       if (!(await branchExists(dir, staging)) || (await ahead(dir, live, staging)) === 0) throw new Error("Nothing is staged for this plugin.");
-      if ((await gitOut(dir, ["rev-parse", "--abbrev-ref", "HEAD"])) !== live) throw new Error(`The live folder is not on ${live}.`);
       if ((await gitOut(dir, ["status", "--porcelain", "--untracked-files=no"])) !== "") throw new Error("The live folder has uncommitted changes. Commit or stash them first.");
       if ((await git(dir, ["merge-base", "--is-ancestor", live, staging])).code !== 0) throw new Error(`${live} moved since this was staged. Stage the update again.`);
+      // A detached checkout is replaced from the GitHub fork on the next `paseo plugin update`, so a merge that
+      // exists only here would silently vanish. Only apply what a remote already has.
+      if (live === "HEAD" && (await gitOut(dir, ["branch", "-r", "--contains", staging])) === "") {
+        throw new Error(`${spec.pluginId} is a managed checkout on a detached HEAD, and a merge applied here would be lost on the next update. Push ${staging} to the fork on GitHub, then run: paseo plugin update ${spec.pluginId} --yes`);
+      }
       await gitOut(dir, ["merge", "--ff-only", staging]);
       await git(dir, ["branch", "-D", staging]);
       failures.delete(toolId);

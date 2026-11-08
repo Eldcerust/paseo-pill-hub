@@ -58,7 +58,7 @@ function gitCase() {
   git(fork, "switch", "-q", "-c", "pill-hub-compat");
   write(join(fork, "plugin.txt"), "line1\nline2\nline3 compat\n");
   commitAll(fork, "Compat change");
-  const spec: ForkSpec = { toolId: "export", pluginId: "fork", liveBranch: "pill-hub-compat", source: { kind: "git", remote: "upstream", branch: "main" } };
+  const spec: ForkSpec = { toolId: "export", pluginId: "fork", source: { kind: "git", remote: "upstream", branch: "main" } };
   const upstreamCommit = (text: string) => {
     write(join(origin, "plugin.txt"), text);
     commitAll(origin, "Upstream change");
@@ -203,16 +203,81 @@ describe("git upstream", () => {
     await expect(engine.apply("export")).rejects.toThrow(/uncommitted/);
   });
 
-  it("will not stage while the live folder is on another branch", async () => {
+  it("follows whatever branch the live folder is on, not a configured name", async () => {
     const c = gitCase();
     const engine = engineFor(c.spec, c.fork);
     git(c.fork, "switch", "-q", "-c", "elsewhere");
     c.upstreamCommit("line1 upstream\nline2\nline3\n");
     await engine.check();
+    expect((await one(engine)).state).toBe("update-available");
     await engine.stage("export");
-    const status = await one(engine);
-    expect(status.state).toBe("error");
-    expect(status.detail).toContain("pill-hub-compat");
+    expect((await one(engine)).state).toBe("staged");
+    await engine.apply("export");
+    expect(git(c.fork, "rev-parse", "--abbrev-ref", "HEAD")).toBe("elsewhere");
+    expect(readFileSync(join(c.fork, "plugin.txt"), "utf8")).toBe("line1 upstream\nline2\nline3 compat\n");
+  });
+});
+
+/** What `paseo plugin install git:...` leaves: a detached HEAD, a local main, and only `origin`. */
+function managedCase() {
+  const root = mkdtempSync(join(tmpdir(), "pill-hub-managed-"));
+  roots.push(root);
+  const origin = join(root, "origin");
+  mkdirSync(origin);
+  git(origin, "init", "-q", "-b", "main");
+  git(origin, "config", "core.autocrlf", "false");
+  write(join(origin, "plugin.txt"), "line1\nline2\nline3\n");
+  commitAll(origin, "Fork start");
+  const checkout = join(root, "checkout");
+  git(root, "clone", "-q", "-c", "core.autocrlf=false", origin, checkout);
+  git(checkout, "checkout", "-q", "--detach");
+  const spec: ForkSpec = { toolId: "run", pluginId: "managed", source: { kind: "git", remote: "origin", branch: "main" } };
+  const forkCommit = (text: string) => {
+    write(join(origin, "plugin.txt"), text);
+    commitAll(origin, "Fork change");
+  };
+  return { root, origin, checkout, spec, forkCommit };
+}
+
+describe("managed checkout on a detached HEAD", () => {
+  it("is up to date, then sees the fork's new commit, stages it and applies it by fast-forward", async () => {
+    const c = managedCase();
+    const engine = engineFor(c.spec, c.checkout);
+    expect(await one(engine)).toMatchObject({ state: "up-to-date" });
+
+    c.forkCommit("line1 changed\nline2\nline3\n");
+    await engine.check();
+    expect(await one(engine)).toMatchObject({ state: "update-available" });
+
+    const liveBefore = git(c.checkout, "rev-parse", "HEAD");
+    await engine.stage("run");
+    expect(await one(engine)).toMatchObject({ state: "staged", stagedBranch: "pill-hub-sync/run" });
+    expect(git(c.checkout, "rev-parse", "HEAD")).toBe(liveBefore);
+
+    await engine.apply("run");
+    expect(git(c.checkout, "rev-parse", "HEAD")).toBe(git(c.origin, "rev-parse", "HEAD"));
+    await engine.check();
+    expect(await one(engine)).toMatchObject({ state: "up-to-date" });
+  });
+
+  it("names a remote the managed checkout does not have, rather than a git revision error", async () => {
+    const c = managedCase();
+    const engine = engineFor({ ...c.spec, source: { kind: "git", remote: "upstream", branch: "main" } }, c.checkout);
+    await engine.check();
+    expect(await one(engine)).toMatchObject({ state: "error", detail: expect.stringContaining("Could not fetch upstream") });
+  });
+
+  it("will not apply a merge that no remote has, since the next plugin update would drop it", async () => {
+    const c = npmCase();
+    git(c.fork, "checkout", "-q", "--detach");
+    const engine = engineFor(c.spec, c.fork, { json: c.json, bytes: c.bytes });
+    await engine.check();
+    expect(await one(engine)).toMatchObject({ state: "update-available", base: "1.0.0", latest: "1.1.0" });
+    await engine.stage("skills");
+    expect(await one(engine)).toMatchObject({ state: "staged", stagedBranch: "pill-hub-sync/skills" });
+    const liveBefore = git(c.fork, "rev-parse", "HEAD");
+    await expect(engine.apply("skills")).rejects.toThrow(/detached HEAD.*paseo plugin update fork/s);
+    expect(git(c.fork, "rev-parse", "HEAD")).toBe(liveBefore);
   });
 });
 
@@ -241,7 +306,7 @@ function npmCase(options: { corruptDownload?: boolean } = {}) {
   const bytes = new Uint8Array(readFileSync(archive));
   const integrity = `sha512-${createHash("sha512").update(options.corruptDownload ? new Uint8Array([1, 2, 3]) : bytes).digest("base64")}`;
   const json = { version: "1.1.0", dist: { tarball: "https://registry.example.invalid/plugin.tgz", integrity } };
-  const spec: ForkSpec = { toolId: "skills", pluginId: "fork", liveBranch: "main", source: { kind: "npm", packageName: "@acme/plugin" } };
+  const spec: ForkSpec = { toolId: "skills", pluginId: "fork", source: { kind: "npm", packageName: "@acme/plugin" } };
   return { fork, spec, json, bytes };
 }
 
@@ -285,7 +350,7 @@ describe("own plugins and missing folders", () => {
   it("has nothing to follow for your own plugin", async () => {
     const engine = createEngine({
       exec,
-      forks: [{ toolId: "switch", pluginId: "own", liveBranch: "main", source: { kind: "own" } }],
+      forks: [{ toolId: "switch", pluginId: "own", source: { kind: "own" } }],
       pluginDir: () => undefined,
       fetchJson: async () => undefined,
       fetchBytes: async () => new Uint8Array(),
