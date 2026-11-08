@@ -2,6 +2,46 @@
 
 Collapses composer pills from cooperating Paseo plugins into one **Tools** pill with a tab per tool. See `OVERVIEW.md` for what it does for a user.
 
+## Requirements
+
+Paseo 0.15.3 or later, on the daemon and on every client that should show the Tools pill.
+
+## Install
+
+From GitHub:
+
+```bash
+paseo plugin add git:Eldcerust/paseo-pill-hub
+```
+
+Or from a local checkout on the daemon machine:
+
+```bash
+paseo plugin add /absolute/path/to/paseo-pill-hub
+```
+
+Reload the hub-aware plugins after installing so they register with the hub:
+
+```bash
+paseo plugin reload shell-yeah
+paseo plugin reload switchboard
+paseo plugin reload paseo-exporter-fork
+paseo plugin reload skills-fork
+paseo plugin reload workspace-links-fork
+```
+
+## Use
+
+Open a chat composer and tap **Tools**. Each enabled tool gets a tab:
+
+- **Run** — Shell Yeah
+- **Skills**
+- **Switch** — Switchboard
+- **Export**
+- **Links** — Workspace links
+
+A tool that is switched off, or whose plugin is not running, keeps its own composer pill. The switches are in **Settings → Pill hub**, in the sidebar's **Pill hub** row, and in the Command Center.
+
 Paseo cannot hide one plugin's pill from another, so this works by cooperation:
 
 - The hub publishes a small versioned bus (`client/bus.ts`) on the `react` module object and on `globalThis`.
@@ -63,3 +103,7 @@ npm install
 npm run typecheck
 npm test
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
