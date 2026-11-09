@@ -60,6 +60,12 @@ The values are stored on the host, so every device of a platform shares one, and
 
 A tool that is switched off, or whose plugin is not running, keeps its own composer pill. The switches are in **Settings → Pill hub**, in the sidebar's **Pill hub** row, and in the Command Center.
 
+### If the Tools pill says "No tools detected"
+
+The Tools pill is there for every chat, but a tool only appears in it once its plugin has attached to the hub. That can fail while the plugins stay "running" on the daemon, because the attaching happens in the app, not on the daemon. The usual cause is a hub that was replaced while the app stayed open (a plugin update, or the app reconnecting): the tools only ever compare "hub or own pill", so they stayed attached to the old hub. A hub that takes over now makes every tool attach to it again, and a hub that stops after being replaced no longer empties its replacement.
+
+When the popover opens empty it also asks the tools to reconnect by itself, says which plugins have reported in, and has a **Reconnect tools** button to ask again. It writes the same facts to the app's log as `[pill-hub] the Tools popover opened with no tools for this chat`, which is what to look at on a phone. "No tool plugin has reported in" means the plugins' app code never reached the hub: reload the app. "Reported in: … None has attached" means they were there but not attached to this chat.
+
 Paseo cannot hide one plugin's pill from another, so this works by cooperation:
 
 - The hub publishes a small versioned bus (`client/bus.ts`) on the `react` module object and on `globalThis`.

@@ -1,10 +1,12 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import type { PluginButtonContentProps } from "@getpaseo/plugin/client";
 import { ScrollView } from "@getpaseo/plugin/client/ui";
-import { Component, useCallback, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Text, View } from "react-native";
+import { Component, useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Pressable, Text, View } from "react-native";
+import { getBus } from "./bus";
 import { currentHeights, heightFor, subscribeHeights } from "./heights";
-import { groupEntries, recallSelection, recallSort, rememberSelection, rememberSort, subscribeGroup } from "./store";
+import { describeNoTools } from "./no-tools";
+import { groupEntries, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, subscribeGroup } from "./store";
 import { activeTool, filterTools, sortTools } from "./tabs";
 import { SortButton, ToolSearch } from "./tool-search";
 import { ToolStrip } from "./tool-strip";
@@ -28,6 +30,40 @@ class ToolBoundary extends Component<{ name: string; theme: PluginTheme; childre
   }
 }
 
+/**
+ * Shown when no tool has attached to this chat. Rather than waiting for the plugins to turn up, it
+ * asks the hub to make them attach again, offers to do that on request, and says which plugins have
+ * reported in so the cause is visible. The same facts go to the log, which is all there is to read
+ * when this happens on a phone.
+ */
+function NoTools({ agentId, theme, width }: { agentId: string; theme: PluginTheme; width: number | `${number}%` }) {
+  const bus = getBus();
+  const announced = [...bus.tools.values()].map((tool) => tool.label);
+  const { summary, hint } = describeNoTools(announced);
+  useEffect(() => {
+    console.warn("[pill-hub] the Tools popover opened with no tools for this chat", { agentId, announced, hubOnBus: bus.hub !== undefined });
+    if (announced.length > 0) reattachTools();
+    // Once per time it opens: the tools showing up replaces this view, and asking again is the button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const colors = theme.colors;
+  return (
+    <View style={{ width, gap: 8 }}>
+      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "600" }}>No tools detected</Text>
+      <Text style={{ color: colors.foreground, fontSize: 13 }}>{summary}</Text>
+      <Text style={{ color: colors.foregroundMuted, fontSize: 13 }}>{hint}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Reconnect tools"
+        onPress={() => reattachTools()}
+        style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.surface1 }}
+      >
+        <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>Reconnect tools</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 /** The single Tools pill's popover: one header row (search, scrolling tabs, sort), then the selected tool's own popover content. */
 export function HubPopover(props: PluginButtonContentProps) {
   if (props.context !== "agent") return null;
@@ -45,16 +81,7 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   const limit = heightFor(useSyncExternalStore(subscribeHeights, currentHeights), layout.platform, layout.compact);
 
   const width = layout.compact ? "100%" : 392;
-  if (entries.length === 0) {
-    return (
-      <View style={{ width, gap: 6 }}>
-        <Text style={{ color: theme.colors.foreground, fontSize: 14, fontWeight: "600" }}>No tools detected</Text>
-        <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13 }}>
-          No hub-aware plugin has reported in for this chat. Check the Pill hub settings and reload the plugins.
-        </Text>
-      </View>
-    );
-  }
+  if (entries.length === 0) return <NoTools agentId={agentId} theme={theme} width={width} />;
 
   // The hub's own order decides which tool opens when none was chosen; the strip only displays it sorted.
   const matches = filterTools(entries, query);

@@ -30,6 +30,18 @@ export function setGroupChangeHandler(handler: (agentId: string) => void): void 
   onGroupChange = handler;
 }
 
+let onReattach: () => void = () => {};
+
+/** The running hub registers how to make every tool attach to it afresh. */
+export function setReattachHandler(handler: () => void): void {
+  onReattach = handler;
+}
+
+/** For a popover that finds no tools: asks the hub to make every tool attach again. */
+export function reattachTools(): void {
+  onReattach();
+}
+
 function rank(toolId: string): number {
   const index = ORDER.indexOf(toolId);
   return index === -1 ? ORDER.length : index;
