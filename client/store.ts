@@ -42,6 +42,34 @@ export function reattachTools(): void {
   onReattach();
 }
 
+export interface HubProbe {
+  /** Whether this hub is the one on the bus, so the one tools attach to. */
+  onBus: boolean;
+}
+
+let probe: () => HubProbe = () => ({ onBus: false });
+
+/** The running hub registers how to tell whether it is the one tools attach to. */
+export function setHubProbe(next: () => HubProbe): void {
+  probe = next;
+}
+
+export function hubProbe(): HubProbe {
+  return probe();
+}
+
+/** How many chats have tools attached in this hub, and how many tools in all. */
+export function storeStats(): { chats: number; tools: number } {
+  let chats = 0;
+  let tools = 0;
+  for (const group of groups.values()) {
+    if (group.slots.size === 0) continue;
+    chats++;
+    tools += group.slots.size;
+  }
+  return { chats, tools };
+}
+
 function rank(toolId: string): number {
   const index = ORDER.indexOf(toolId);
   return index === -1 ? ORDER.length : index;

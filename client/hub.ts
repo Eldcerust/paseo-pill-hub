@@ -4,7 +4,7 @@ import { getBus, notify, type HubApi } from "./bus";
 import { observeDirectory } from "./directory";
 import { setHeights } from "./heights";
 import { HubPopover } from "./popover";
-import { clearEntry, groupEntries, groupWorkspace, resetStore, setEntry, setGroupChangeHandler, setReattachHandler } from "./store";
+import { clearEntry, groupEntries, groupWorkspace, resetStore, setEntry, setGroupChangeHandler, setHubProbe, setReattachHandler } from "./store";
 
 const CONFIG_POLL_MS = 60_000;
 const CONFIG_RETRY_MS = 3_000;
@@ -117,6 +117,7 @@ export function startHub(client: PluginClientContext): HubController {
 
   setGroupChangeHandler(syncPill);
   setReattachHandler(reattach);
+  setHubProbe(() => ({ onBus: bus.hub === api }));
   // A hub that was replaced without being stopped first (an update, or a client that reconnected)
   // leaves its tools attached to it. Take the bus the same way reattach() does.
   if (bus.hub) {
@@ -182,6 +183,7 @@ export function startHub(client: PluginClientContext): HubController {
         resetStore();
         setGroupChangeHandler(() => {});
         setReattachHandler(() => {});
+        setHubProbe(() => ({ onBus: false }));
       }
       for (const pill of pills.values()) pill.registration.remove();
       pills.clear();

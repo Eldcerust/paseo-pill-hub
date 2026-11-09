@@ -5,8 +5,8 @@ import { Component, useCallback, useEffect, useState, useSyncExternalStore, type
 import { Pressable, Text, View } from "react-native";
 import { getBus } from "./bus";
 import { currentHeights, heightFor, subscribeHeights } from "./heights";
-import { describeNoTools } from "./no-tools";
-import { groupEntries, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, subscribeGroup } from "./store";
+import { describeNoTools, type NoToolsFacts } from "./no-tools";
+import { groupEntries, hubProbe, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, storeStats, subscribeGroup } from "./store";
 import { activeTool, filterTools, sortTools } from "./tabs";
 import { SortButton, ToolSearch } from "./tool-search";
 import { ToolStrip } from "./tool-strip";
@@ -37,11 +37,14 @@ class ToolBoundary extends Component<{ name: string; theme: PluginTheme; childre
  * when this happens on a phone.
  */
 function NoTools({ agentId, theme, width }: { agentId: string; theme: PluginTheme; width: number | `${number}%` }) {
+  const [asked, setAsked] = useState(0);
   const bus = getBus();
   const announced = [...bus.tools.values()].map((tool) => tool.label);
-  const { summary, hint } = describeNoTools(announced);
+  const facts: NoToolsFacts = { announced, registrations: bus.listeners.size, onBus: hubProbe().onBus, otherChats: storeStats().chats };
+  const { summary, hint, details } = describeNoTools(facts);
   useEffect(() => {
-    console.warn("[pill-hub] the Tools popover opened with no tools for this chat", { agentId, announced, hubOnBus: bus.hub !== undefined });
+    // console.error, because that is the level the desktop app keeps in its log.
+    console.error("[pill-hub] the Tools popover opened with no tools for this chat", { agentId, ...facts });
     if (announced.length > 0) reattachTools();
     // Once per time it opens: the tools showing up replaces this view, and asking again is the button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,11 +58,20 @@ function NoTools({ agentId, theme, width }: { agentId: string; theme: PluginThem
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Reconnect tools"
-        onPress={() => reattachTools()}
+        onPress={() => {
+          reattachTools();
+          setAsked((count) => count + 1);
+        }}
         style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.surface1 }}
       >
         <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600" }}>Reconnect tools</Text>
       </Pressable>
+      {asked > 0 ? (
+        <Text style={{ color: colors.foreground, fontSize: 12 }}>
+          Asked {asked} {asked === 1 ? "time" : "times"}. Nothing attached to this chat.
+        </Text>
+      ) : null}
+      <Text style={{ color: colors.foregroundMuted, fontSize: 11 }}>{details}</Text>
     </View>
   );
 }
