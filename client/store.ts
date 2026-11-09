@@ -1,4 +1,4 @@
-import type { HubEntry } from "./bus";
+import { getBus, sharedState, type HubApi, type HubEntry } from "./bus";
 import type { SortDirection } from "./tabs";
 
 /**
@@ -21,48 +21,104 @@ interface Group {
   listeners: Set<() => void>;
 }
 
-const groups = new Map<string, Group>();
-const selection = new Map<string, string>();
-let onGroupChange: (agentId: string) => void = () => {};
-
-/** The controller hears about every change so it can add or remove the hub pill. */
-export function setGroupChangeHandler(handler: (agentId: string) => void): void {
-  onGroupChange = handler;
+/** A running hub. There is one per host the app is connected to. */
+export interface HubMember {
+  /** Whether this hub's host wants the tool inside the hub pill. */
+  merges(toolId: string): boolean;
+  /** Called when a chat's tools change, so the hub can add or remove its pill for that chat. */
+  syncPill(agentId: string): void;
+  /** Makes every tool drop its attachment and attach again. */
+  reattach(): void;
 }
 
-let onReattach: () => void = () => {};
-
-/** The running hub registers how to make every tool attach to it afresh. */
-export function setReattachHandler(handler: () => void): void {
-  onReattach = handler;
+/*
+ * Everything the hubs in this app have in common. The app runs one copy of each plugin for every host
+ * it is connected to, all in one JS realm, and tools find the hub through one object on the bus. So
+ * the tools' attachments are kept once for the whole app, by chat id, which is unique across hosts.
+ * Each hub draws a pill only for chats of its own host and so only ever shows its own host's tools.
+ * What must not happen is one host's hub taking the bus and with it the other hub's tools.
+ */
+interface Shared {
+  version: number;
+  groups: Map<string, Group>;
+  selection: Map<string, string>;
+  members: Set<HubMember>;
+  /** The one api on the bus, whichever hub put it there. */
+  api: HubApi;
 }
 
-/** For a popover that finds no tools: asks the hub to make every tool attach again. */
+const SHARED_KEY = "__paseoPillHubShared";
+const SHARED_VERSION = 1;
+
+function createShared(): Shared {
+  const shared: Shared = {
+    version: SHARED_VERSION,
+    groups: new Map(),
+    selection: new Map(),
+    members: new Set(),
+    api: {
+      // Switched on for the tool by any host's hub; the bus cannot say which host is asking.
+      merges: (toolId) => [...shared.members].some((member) => member.merges(toolId)),
+      attach(entry) {
+        const token = Symbol(entry.toolId);
+        let current = entry;
+        setEntry(current, token);
+        return {
+          update(patch) {
+            current = { ...current, ...patch };
+            setEntry(current, token);
+          },
+          remove() {
+            clearEntry(current.agentId, current.toolId, token);
+          },
+        };
+      },
+    },
+  };
+  return shared;
+}
+
+function shared(): Shared {
+  return sharedState(SHARED_KEY, SHARED_VERSION, createShared);
+}
+
+/** The api every hub puts on the bus. All hubs in this app use the same one. */
+export function hubApi(): HubApi {
+  return shared().api;
+}
+
+/** Registers a running hub. */
+export function joinHub(member: HubMember): void {
+  shared().members.add(member);
+}
+
+/** Unregisters a hub. Returns whether any hub is still running. */
+export function leaveHub(member: HubMember): boolean {
+  const { members } = shared();
+  members.delete(member);
+  return members.size > 0;
+}
+
+/** For a popover that finds no tools: asks a running hub to make every tool attach again. */
 export function reattachTools(): void {
-  onReattach();
+  [...shared().members][0]?.reattach();
 }
 
 export interface HubProbe {
-  /** Whether this hub is the one on the bus, so the one tools attach to. */
+  /** Whether a hub is running and its api is the one on the bus, which is the one tools attach to. */
   onBus: boolean;
 }
 
-let probe: () => HubProbe = () => ({ onBus: false });
-
-/** The running hub registers how to tell whether it is the one tools attach to. */
-export function setHubProbe(next: () => HubProbe): void {
-  probe = next;
-}
-
 export function hubProbe(): HubProbe {
-  return probe();
+  const { members, api } = shared();
+  return { onBus: members.size > 0 && getBus().hub === api };
 }
 
-/** How many chats have tools attached in this hub, and how many tools in all. */
+/** How many chats have tools attached, and how many tools in all, across every host. */
 export function storeStats(): { chats: number; tools: number } {
   let chats = 0;
   let tools = 0;
-  for (const group of groups.values()) {
+  for (const group of shared().groups.values()) {
     if (group.slots.size === 0) continue;
     chats++;
     tools += group.slots.size;
@@ -85,10 +141,12 @@ function snapshotOf(group: Group): readonly HubEntry[] {
 function changed(agentId: string, group: Group): void {
   group.snapshot = snapshotOf(group);
   for (const listener of [...group.listeners]) listener();
-  onGroupChange(agentId);
+  // Every hub hears of every chat; each acts only on the chats of its own host.
+  for (const member of [...shared().members]) member.syncPill(agentId);
 }
 
 export function setEntry(entry: HubEntry, token: symbol): void {
+  const { groups } = shared();
   let group = groups.get(entry.agentId);
   if (!group) {
     group = { workspaceId: entry.workspaceId, slots: new Map(), snapshot: NONE, listeners: new Set() };
@@ -101,6 +159,7 @@ export function setEntry(entry: HubEntry, token: symbol): void {
 
 /** Removes the slot only if it still belongs to this attachment; a newer attachment keeps it. */
 export function clearEntry(agentId: string, toolId: string, token: symbol): void {
+  const { groups } = shared();
   const group = groups.get(agentId);
   const slot = group?.slots.get(toolId);
   if (!group || !slot || slot.token !== token) return;
@@ -110,14 +169,11 @@ export function clearEntry(agentId: string, toolId: string, token: symbol): void
 }
 
 export function groupEntries(agentId: string): readonly HubEntry[] {
-  return groups.get(agentId)?.snapshot ?? NONE;
-}
-
-export function groupWorkspace(agentId: string): string | undefined {
-  return groups.get(agentId)?.workspaceId;
+  return shared().groups.get(agentId)?.snapshot ?? NONE;
 }
 
 export function subscribeGroup(agentId: string, listener: () => void): () => void {
+  const { groups } = shared();
   let group = groups.get(agentId);
   if (!group) {
     group = { workspaceId: "", slots: new Map(), snapshot: NONE, listeners: new Set() };
@@ -125,18 +181,18 @@ export function subscribeGroup(agentId: string, listener: () => void): () => voi
   }
   group.listeners.add(listener);
   return () => {
-    const current = groups.get(agentId);
+    const current = shared().groups.get(agentId);
     current?.listeners.delete(listener);
-    if (current && current.slots.size === 0 && current.listeners.size === 0) groups.delete(agentId);
+    if (current && current.slots.size === 0 && current.listeners.size === 0) shared().groups.delete(agentId);
   };
 }
 
 export function rememberSelection(agentId: string, toolId: string): void {
-  selection.set(agentId, toolId);
+  shared().selection.set(agentId, toolId);
 }
 
 export function recallSelection(agentId: string): string | undefined {
-  return selection.get(agentId);
+  return shared().selection.get(agentId);
 }
 
 /** The tab order the user last picked. It is a display preference, so a hub restart keeps it. */
@@ -150,8 +206,9 @@ export function rememberSort(direction: SortDirection): void {
   sortDirection = direction;
 }
 
-/** Drops every entry, for when the hub stops and the forks fall back to their own pills. */
+/** Drops every entry, for when the last hub stops and the tools fall back to their own pills. */
 export function resetStore(): void {
+  const { groups, selection } = shared();
   for (const [agentId, group] of [...groups]) {
     group.slots.clear();
     changed(agentId, group);

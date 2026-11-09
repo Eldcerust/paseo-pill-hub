@@ -86,6 +86,27 @@ export function getBus(): Bus {
   return created;
 }
 
+/**
+ * State every copy of the hub in this app has to share. The app runs one copy of each plugin per host
+ * it is connected to, inside one JS realm, so two hubs can be live at once, each for its own host.
+ * Module-level variables would be private to each copy. This is found on the same carriers as the bus,
+ * and replaced when `version` differs, so a changed shape never meets an older one.
+ */
+export function sharedState<T extends { version: number }>(key: string, version: number, create: () => T): T {
+  const places = carriers();
+  const existing = places.map((place) => (place as Record<string, T | undefined>)[key]).find(Boolean);
+  if (existing && existing.version === version) return existing;
+  const created = create();
+  for (const place of places) {
+    try {
+      Object.defineProperty(place, key, { value: created, configurable: true, writable: true, enumerable: false });
+    } catch {
+      // A carrier that refuses the property is skipped; the others still carry it.
+    }
+  }
+  return created;
+}
+
 export function notify(bus: Bus): void {
   for (const listener of [...bus.listeners]) {
     try {

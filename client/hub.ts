@@ -1,10 +1,10 @@
 import type { PluginButtonRegistration, PluginClientContext } from "@getpaseo/plugin/client";
 import { getConfig, heightDefaults, type Heights } from "../shared/config";
-import { getBus, notify, type HubApi } from "./bus";
+import { getBus, notify } from "./bus";
 import { observeDirectory } from "./directory";
 import { setHeights } from "./heights";
 import { HubPopover } from "./popover";
-import { clearEntry, groupEntries, groupWorkspace, resetStore, setEntry, setGroupChangeHandler, setHubProbe, setReattachHandler } from "./store";
+import { hubApi, joinHub, leaveHub, resetStore, type HubMember } from "./store";
 
 const CONFIG_POLL_MS = 60_000;
 const CONFIG_RETRY_MS = 3_000;
@@ -37,30 +37,15 @@ export function startHub(client: PluginClientContext): HubController {
   let merged: Record<string, boolean> = {};
   let stopped = false;
 
-  const api: HubApi = {
-    // A tool the settings never mentioned follows the default: merged.
-    merges: (toolId) => merged[toolId] ?? true,
-    attach(entry) {
-      const token = Symbol(entry.toolId);
-      let current = entry;
-      setEntry(current, token);
-      return {
-        update(patch) {
-          current = { ...current, ...patch };
-          setEntry(current, token);
-        },
-        remove() {
-          clearEntry(current.agentId, current.toolId, token);
-        },
-      };
-    },
-  };
+  // The one api on the bus, shared by every hub in this app: one runs per host the app is connected to.
+  const api = hubApi();
 
-  // One pill per live chat. It stays even when no tool has attached, so a failed
-  // plugin cannot leave the composer with no pill and no explanation.
+  // One pill per live chat of this host. It stays even when no tool has attached, so a failed
+  // plugin cannot leave the composer with no pill and no explanation. Chats of another host belong to
+  // that host's hub, so only a chat this host's own directory lists gets a pill from this one.
   function syncPill(agentId: string) {
     if (stopped) return;
-    const workspaceId = groupWorkspace(agentId) ?? agentWorkspaces.get(agentId);
+    const workspaceId = agentWorkspaces.get(agentId);
     const current = pills.get(agentId);
     if (!workspaceId) {
       current?.registration.remove();
@@ -115,17 +100,19 @@ export function startHub(client: PluginClientContext): HubController {
     notify(bus);
   }
 
-  setGroupChangeHandler(syncPill);
-  setReattachHandler(reattach);
-  setHubProbe(() => ({ onBus: bus.hub === api }));
-  // A hub that was replaced without being stopped first (an update, or a client that reconnected)
-  // leaves its tools attached to it. Take the bus the same way reattach() does.
-  if (bus.hub) {
+  const member: HubMember = { merges: (toolId) => merged[toolId] ?? true, syncPill, reattach };
+  joinHub(member);
+  // A hub of an older kind may hold the bus with the tools attached to it. Take the bus the way
+  // reattach() does, so they come to the shared api. When another hub of this kind is already on the
+  // bus, the tools are attached to the shared api already, and this hub just starts showing them.
+  if (bus.hub && bus.hub !== api) {
     bus.hub = undefined;
     notify(bus);
   }
-  bus.hub = api;
-  notify(bus);
+  if (bus.hub !== api) {
+    bus.hub = api;
+    notify(bus);
+  }
   // The hub owns the Tools pill. Watching agents directly means the pill is present
   // even before a tool reports in, or when one of them fails to load.
   const stopAgents = observeDirectory({
@@ -174,19 +161,18 @@ export function startHub(client: PluginClientContext): HubController {
       stopped = true;
       clearInterval(poll);
       stopAgents();
-      // Only the hub on the bus owns the tools. One that was replaced without being stopped must not
-      // empty the store or send the tools back to their own pills, or it takes them from its replacement.
-      if (bus.hub === api) {
-        // Forks watch the bus: with no hub they move back to pills of their own.
-        bus.hub = undefined;
-        notify(bus);
-        resetStore();
-        setGroupChangeHandler(() => {});
-        setReattachHandler(() => {});
-        setHubProbe(() => ({ onBus: false }));
-      }
       for (const pill of pills.values()) pill.registration.remove();
       pills.clear();
+      // The tools are the whole app's, not this hub's: another hub (the other host's, or this one's
+      // replacement) may be using them. Only when the last hub is gone do they go back to pills of
+      // their own, which they do when the bus has no hub.
+      if (!leaveHub(member)) {
+        if (bus.hub === api) {
+          bus.hub = undefined;
+          notify(bus);
+        }
+        resetStore();
+      }
       if (active === controller) active = undefined;
     },
   };
