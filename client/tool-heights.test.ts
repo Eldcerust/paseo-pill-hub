@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { HEIGHT_MAX, HEIGHT_MIN, heightDefaults, hubSettings } from "../shared/config";
-import { currentHeights, heightFor, heightText, parseHeightDraft, setHeights, subscribeHeights } from "./heights";
+import { currentHeights, heightFor, heightText, parseHeightDraft, setHeights, sheetToolHeight, subscribeHeights } from "./heights";
+
+describe("sheetToolHeight", () => {
+  it("fills what a phone's sheet leaves, as Switch does", () => {
+    expect(sheetToolHeight(844)).toBe(464);
+    expect(sheetToolHeight(932)).toBe(552);
+  });
+
+  it("never goes below 340 or above 560", () => {
+    expect(sheetToolHeight(600)).toBe(340);
+    expect(sheetToolHeight(1400)).toBe(560);
+  });
+
+  it("is a whole number of pixels", () => {
+    expect(Number.isInteger(sheetToolHeight(851.6))).toBe(true);
+  });
+
+  it("lets a smaller limit from the settings win, and ignores a larger one", () => {
+    expect(sheetToolHeight(844, 300)).toBe(300);
+    expect(sheetToolHeight(844, 900)).toBe(464);
+  });
+});
 
 describe("parseHeightDraft", () => {
   it("treats blank and 0 as no limit", () => {

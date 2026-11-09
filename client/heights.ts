@@ -39,6 +39,23 @@ export function heightFor(heights: Heights, platform: string, compact = false): 
   return value > 0 ? value : undefined;
 }
 
+/** Room a phone's bottom sheet leaves above the tool area, which Switch also reserves (its HUB_CHROME_HEIGHT). */
+const SHEET_CHROME = 380;
+const SHEET_TOOL_MIN = 340;
+const SHEET_TOOL_MAX = 560;
+
+/**
+ * How tall the tool area is on a phone, whichever tool is showing. The sheet is as tall as its content
+ * when it opens and does not re-anchor when the content grows afterwards, so a tool that appears late
+ * or a tab that is taller than the last one leaves the bottom of the sheet below the screen. Holding
+ * the area at one height means the sheet never has to grow. It is what Switch asks for, so Switch fits
+ * exactly; a limit set in the settings wins when it is smaller.
+ */
+export function sheetToolHeight(windowHeight: number, limit?: number): number {
+  const wanted = Math.max(SHEET_TOOL_MIN, Math.min(SHEET_TOOL_MAX, Math.round(windowHeight - SHEET_CHROME)));
+  return limit !== undefined ? Math.min(wanted, limit) : wanted;
+}
+
 export type HeightDraft = { ok: true; value: number } | { ok: false; error: string };
 
 /** What was typed in a height field: blank or 0 is no limit, otherwise whole pixels within range. */

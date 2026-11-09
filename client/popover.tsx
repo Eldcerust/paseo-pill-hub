@@ -2,9 +2,9 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import type { PluginButtonContentProps } from "@getpaseo/plugin/client";
 import { ScrollView } from "@getpaseo/plugin/client/ui";
 import { Component, useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { getBus } from "./bus";
-import { currentHeights, heightFor, subscribeHeights } from "./heights";
+import { currentHeights, heightFor, sheetToolHeight, subscribeHeights } from "./heights";
 import { describeNoTools, type NoToolsFacts } from "./no-tools";
 import { groupEntries, hubProbe, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, storeStats, subscribeGroup } from "./store";
 import { activeTool, filterTools, sortTools } from "./tabs";
@@ -36,7 +36,7 @@ class ToolBoundary extends Component<{ name: string; theme: PluginTheme; childre
  * reported in so the cause is visible. The same facts go to the log, which is all there is to read
  * when this happens on a phone.
  */
-function NoTools({ agentId, theme, width }: { agentId: string; theme: PluginTheme; width: number | `${number}%` }) {
+function NoTools({ agentId, theme, width, minHeight }: { agentId: string; theme: PluginTheme; width: number | `${number}%`; minHeight?: number }) {
   const [asked, setAsked] = useState(0);
   const bus = getBus();
   const announced = [...bus.tools.values()].map((tool) => tool.label);
@@ -51,7 +51,7 @@ function NoTools({ agentId, theme, width }: { agentId: string; theme: PluginThem
   }, []);
   const colors = theme.colors;
   return (
-    <View style={{ width, gap: 8 }}>
+    <View style={{ width, minHeight, gap: 8 }}>
       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "600" }}>No tools detected</Text>
       <Text style={{ color: colors.foreground, fontSize: 13 }}>{summary}</Text>
       <Text style={{ color: colors.foregroundMuted, fontSize: 13 }}>{hint}</Text>
@@ -91,9 +91,14 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState(recallSort);
   const limit = heightFor(useSyncExternalStore(subscribeHeights, currentHeights), layout.platform, layout.compact);
+  const { height: windowHeight } = useWindowDimensions();
+  // A phone's sheet does not re-anchor when its content grows, so the tool area keeps one height.
+  const toolHeight = layout.compact ? sheetToolHeight(windowHeight, limit) : undefined;
 
   const width = layout.compact ? "100%" : 392;
-  if (entries.length === 0) return <NoTools agentId={agentId} theme={theme} width={width} />;
+  // The empty view is as tall as the full one (tool area plus the 44px header row), so tools
+  // attaching to it later do not grow the sheet either.
+  if (entries.length === 0) return <NoTools agentId={agentId} theme={theme} width={width} minHeight={toolHeight === undefined ? undefined : toolHeight + 44} />;
 
   // The hub's own order decides which tool opens when none was chosen; the strip only displays it sorted.
   const matches = filterTools(entries, query);
@@ -147,13 +152,16 @@ function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
         )}
         <SortButton direction={direction} onPress={toggleSort} theme={theme} />
       </View>
-      {tool && limit ? (
-        <ScrollView style={{ maxHeight: limit }} nestedScrollEnabled showsVerticalScrollIndicator>
-          {tool}
-        </ScrollView>
-      ) : (
-        tool
-      )}
+      {/* On a phone the area holds one height whichever tool shows, so the sheet never has to grow. */}
+      <View style={toolHeight === undefined ? undefined : { minHeight: toolHeight }}>
+        {tool && limit ? (
+          <ScrollView style={{ maxHeight: limit }} nestedScrollEnabled showsVerticalScrollIndicator>
+            {tool}
+          </ScrollView>
+        ) : (
+          tool
+        )}
+      </View>
     </View>
   );
 }

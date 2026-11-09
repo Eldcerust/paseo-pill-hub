@@ -1,8 +1,12 @@
 import type { PluginTheme } from "@getpaseo/plugin";
-import { Icon, ScrollView } from "@getpaseo/plugin/client/ui";
+import { Icon } from "@getpaseo/plugin/client/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
+// The plain React Native ScrollView, not the plugin one. Inside a phone's bottom sheet the plugin one
+// registers with the sheet as its scrollable, and the sheet only has one: a horizontal strip taking
+// that place leaves the sheet reading a vertical drag as a drag of the sheet itself.
 import {
   Pressable,
+  ScrollView,
   Text,
   View,
   type LayoutChangeEvent,
