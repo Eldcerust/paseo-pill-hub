@@ -68,7 +68,7 @@ The Tools pill is there for every chat, but a tool only appears in it once its p
 
 **A hub replaced while the app stays open** (a plugin update, or the app reconnecting) left tools attached to the old hub, because a tool only compares "hub or own pill". A hub that starts while an older kind holds the bus now takes it in a way that makes every tool attach again.
 
-**One popover at a time.** The app keeps a composer mounted for every tab it has open, and a popover it drew stays mounted when that tab is hidden, so its Tools popover can survive a tab switch and show up again beside the one you just opened, drawn at the top-left corner because the hidden pill has no size. The newest popover now takes a single claim in the shared store and closes the older one through the host's own `close`, so only the one you opened stays.
+**One popover at a time.** The app keeps a composer mounted for every tab it has open, and a popover it drew stays mounted when that tab is hidden, so its Tools popover can survive a tab switch and show up again beside the one you just opened, drawn at the top-left corner because the hidden pill has no size. A popover opened for one chat now closes another chat's, which is safe because they are different entries. Two mounts of the *same* pill cannot be separated that way: they share one open flag, so closing either closes the one just opened. That case is left alone and logged instead.
 
 The hubs' shared state is a zustand store (`client/zustand.ts` holds the vanilla store; the host's plugin compiler only keeps `react`, `react-native`, `zod` and `@getpaseo/plugin*` external and an installed checkout has no `node_modules`, so zustand is vendored rather than depended on).
 

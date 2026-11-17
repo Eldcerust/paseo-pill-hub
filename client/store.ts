@@ -224,11 +224,14 @@ export function claimPopover(agentId: string, close: () => void): () => void {
   const id = ++shared().popoverSeq;
   const previous = store.getState().popover;
   store.setState({ ...store.getState(), popover: { id, agentId, close } });
-  if (previous) {
-    // console.error, because that is the level the desktop app keeps in its log: if a second surface is
-    // still on screen after this, the older one is frozen inside a hidden tab and only the app can drop it.
-    console.error("[pill-hub] a second Tools popover opened; closed the older one", { older: previous.agentId, opened: agentId });
+  if (previous && previous.agentId !== agentId) {
+    // Another chat's popover. Closing it is safe: it is a different entry, so it cannot take this one down.
     previous.close();
+  } else if (previous) {
+    // The same pill mounted twice (the host keeps a composer per open tab). Both surfaces share one
+    // open flag, so closing either closes the one just opened: leave both up and say so in the log.
+    // console.error, because that is the level the desktop app keeps in its log.
+    console.error("[pill-hub] the Tools popover is mounted twice for one chat; left the older surface alone", { agentId });
   }
   return () => {
     const state = store.getState();
