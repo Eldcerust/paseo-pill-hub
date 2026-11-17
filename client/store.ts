@@ -128,6 +128,11 @@ export function hubProbe(): HubProbe {
   return { onBus: members.size > 0 && getBus().hub === api };
 }
 
+/** How many hubs are running in this app. One per host it is connected to; more than one is normal. */
+export function hubCount(): number {
+  return shared().members.size;
+}
+
 /** How many chats have tools attached, and how many tools in all, across every host. */
 export function storeStats(): { chats: number; tools: number } {
   let chats = 0;

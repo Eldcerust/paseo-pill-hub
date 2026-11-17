@@ -4,7 +4,7 @@ import { getBus, notify } from "./bus";
 import { observeDirectory } from "./directory";
 import { setHeights } from "./heights";
 import { HubPopover } from "./popover";
-import { hubApi, joinHub, leaveHub, resetStore, type HubMember } from "./store";
+import { hubApi, hubCount, joinHub, leaveHub, resetStore, type HubMember } from "./store";
 
 const CONFIG_POLL_MS = 60_000;
 const CONFIG_RETRY_MS = 3_000;
@@ -102,6 +102,9 @@ export function startHub(client: PluginClientContext): HubController {
 
   const member: HubMember = { merges: (toolId) => merged[toolId] ?? true, syncPill, reattach };
   joinHub(member);
+  // console.error, because that is the level the desktop app keeps in its log. One line per hub: the
+  // app runs one hub per host it is connected to, so two lines here mean two installations.
+  console.error("[pill-hub] hub started", { hubs: hubCount() });
   // A hub of an older kind may hold the bus with the tools attached to it. Take the bus the way
   // reattach() does, so they come to the shared api. When another hub of this kind is already on the
   // bus, the tools are attached to the shared api already, and this hub just starts showing them.

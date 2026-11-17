@@ -6,7 +6,7 @@ import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { getBus } from "./bus";
 import { currentHeights, heightFor, sheetToolHeight, subscribeHeights } from "./heights";
 import { describeNoTools, type NoToolsFacts } from "./no-tools";
-import { claimPopover, hubProbe, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, storeStats, useGroupEntries } from "./store";
+import { claimPopover, hubCount, hubProbe, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, storeStats, useGroupEntries } from "./store";
 import { activeTool, filterTools, sortTools } from "./tabs";
 import { SortButton, ToolSearch } from "./tool-search";
 import { ToolStrip } from "./tool-strip";
@@ -79,11 +79,19 @@ function NoTools({ agentId, theme, width, minHeight }: { agentId: string; theme:
 /** The single Tools pill's popover: one header row (search, scrolling tabs, sort), then the selected tool's own popover content. */
 export function HubPopover(props: PluginButtonContentProps) {
   // The host draws a pill per composer it keeps mounted, and a popover it drew stays mounted when that
-  // composer is hidden, so opening Tools again can leave two surfaces on screen. The newest mount takes
-  // the one-popover claim and closes the older one.
+  // composer is hidden, so opening Tools again can leave two surfaces on screen. Another chat's popover
+  // is closed, because it is a different entry; two mounts of one pill cannot be separated.
   const close = useRef(props.close);
   close.current = props.close;
-  useEffect(() => claimPopover(props.context === "agent" ? props.agentId : "", () => close.current()), []);
+  const agentId = props.context === "agent" ? props.agentId : "";
+  useEffect(() => {
+    // console.error, because that is the level the desktop app keeps in its log: a second line here
+    // with the same host and chat means one pill drawn twice, two different hosts mean two hubs.
+    console.error("[pill-hub] tools popover opened", { host: props.host.id, agent: agentId, hubs: hubCount() });
+    return claimPopover(agentId, () => close.current());
+    // Once per mount: the host remounts this every time the popover opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   if (props.context !== "agent") return null;
   return <AgentTools {...props} />;
 }
