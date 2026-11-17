@@ -219,12 +219,12 @@ export function recallSelection(agentId: string): string | undefined {
 }
 
 /**
- * Exactly one hub popover on screen at a time. The host keeps a pill mounted per composer it draws,
- * and a popover it drew stays mounted when that composer is hidden, so the same chat can end up with
- * two surfaces, one of them anchored to a composer that is no longer laid out. The newest mount takes
- * the claim and closes whatever held it, which leaves the one the user just opened.
+ * Exactly one hub popover on screen at a time. The host draws a pill per composer it keeps mounted, and
+ * a popover it drew outlives the composer it belongs to, so one chat can end up with two surfaces, one
+ * of them anchored to a composer that is no longer laid out. Both surfaces are the same entry and share
+ * one open flag, so closing either closes the one just opened: the duplicate has to hide itself instead.
  */
-export function claimPopover(agentId: string, close: () => void): () => void {
+export function claimPopover(agentId: string, close: () => void): number {
   const { store } = shared();
   const id = ++shared().popoverSeq;
   const previous = store.getState().popover;
@@ -233,15 +233,21 @@ export function claimPopover(agentId: string, close: () => void): () => void {
     // Another chat's popover. Closing it is safe: it is a different entry, so it cannot take this one down.
     previous.close();
   } else if (previous) {
-    // The same pill mounted twice (the host keeps a composer per open tab). Both surfaces share one
-    // open flag, so closing either closes the one just opened: leave both up and say so in the log.
     // console.error, because that is the level the desktop app keeps in its log.
     console.error(`[pill-hub] the Tools popover is mounted twice for one chat agent=${agentId}`);
   }
-  return () => {
-    const state = store.getState();
-    if (state.popover?.id === id) store.setState({ ...state, popover: null });
-  };
+  return id;
+}
+
+export function releasePopover(id: number): void {
+  const { store } = shared();
+  const state = store.getState();
+  if (state.popover?.id === id) store.setState({ ...state, popover: null });
+}
+
+/** The popover that currently holds the claim, for a surface that has to know whether it is the duplicate. */
+export function usePopoverClaim(): Popover | null {
+  return useStore(shared().store, (state) => state.popover);
 }
 
 /** The tab order the user last picked. It is a display preference, so a hub restart keeps it. */

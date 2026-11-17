@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@getpaseo/plugin/client", () => ({ useRpc: () => () => undefined, usePaseo: () => ({}) }));
 
-import { claimPopover } from "./store";
+import { claimPopover, releasePopover } from "./store";
 
 /*
  * The host keeps a composer mounted per open tab, so one pill can be mounted twice and both surfaces
@@ -46,11 +46,11 @@ describe("one Tools popover at a time", () => {
 
   it("leaves the newer popover alone when the older one unmounts", () => {
     const older = vi.fn();
-    const releaseOlder = claimPopover("a1", older);
+    const olderId = claimPopover("a1", older);
     const newer = vi.fn();
     claimPopover("a2", newer);
 
-    releaseOlder();
+    releasePopover(olderId);
 
     expect(older).toHaveBeenCalledTimes(1);
     expect(newer).not.toHaveBeenCalled();
@@ -58,8 +58,8 @@ describe("one Tools popover at a time", () => {
 
   it("lets the next popover open after the current one unmounts", () => {
     const first = vi.fn();
-    const releaseFirst = claimPopover("a1", first);
-    releaseFirst();
+    const firstId = claimPopover("a1", first);
+    releasePopover(firstId);
     const second = vi.fn();
 
     claimPopover("a1", second);
