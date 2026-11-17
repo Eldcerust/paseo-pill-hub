@@ -68,6 +68,10 @@ The Tools pill is there for every chat, but a tool only appears in it once its p
 
 **A hub replaced while the app stays open** (a plugin update, or the app reconnecting) left tools attached to the old hub, because a tool only compares "hub or own pill". A hub that starts while an older kind holds the bus now takes it in a way that makes every tool attach again.
 
+**One popover at a time.** The app keeps a composer mounted for every tab it has open, and a popover it drew stays mounted when that tab is hidden, so its Tools popover can survive a tab switch and show up again beside the one you just opened, drawn at the top-left corner because the hidden pill has no size. The newest popover now takes a single claim in the shared store and closes the older one through the host's own `close`, so only the one you opened stays.
+
+The hubs' shared state is a zustand store (`client/zustand.ts` holds the vanilla store; the host's plugin compiler only keeps `react`, `react-native`, `zod` and `@getpaseo/plugin*` external and an installed checkout has no `node_modules`, so zustand is vendored rather than depended on).
+
 When the popover opens empty it also asks the tools to reconnect by itself, says which plugins have reported in, and has a **Reconnect tools** button to ask again. It writes the same facts to the app's log as `[pill-hub] the Tools popover opened with no tools for this chat`. "No tool plugin has reported in" means the plugins' app code never reached the hub: reload the app. "They attached to another copy of the hub" means a hub of an older version, on another host, holds the bus: update the hub there too. "Reported in: … None has attached" means they were there but not attached to this chat.
 
 Paseo cannot hide one plugin's pill from another, so this works by cooperation:

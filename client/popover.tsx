@@ -1,12 +1,12 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import type { PluginButtonContentProps } from "@getpaseo/plugin/client";
 import { ScrollView } from "@getpaseo/plugin/client/ui";
-import { Component, useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { getBus } from "./bus";
 import { currentHeights, heightFor, sheetToolHeight, subscribeHeights } from "./heights";
 import { describeNoTools, type NoToolsFacts } from "./no-tools";
-import { groupEntries, hubProbe, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, storeStats, subscribeGroup } from "./store";
+import { claimPopover, hubProbe, reattachTools, recallSelection, recallSort, rememberSelection, rememberSort, storeStats, useGroupEntries } from "./store";
 import { activeTool, filterTools, sortTools } from "./tabs";
 import { SortButton, ToolSearch } from "./tool-search";
 import { ToolStrip } from "./tool-strip";
@@ -78,14 +78,19 @@ function NoTools({ agentId, theme, width, minHeight }: { agentId: string; theme:
 
 /** The single Tools pill's popover: one header row (search, scrolling tabs, sort), then the selected tool's own popover content. */
 export function HubPopover(props: PluginButtonContentProps) {
+  // The host draws a pill per composer it keeps mounted, and a popover it drew stays mounted when that
+  // composer is hidden, so opening Tools again can leave two surfaces on screen. The newest mount takes
+  // the one-popover claim and closes the older one.
+  const close = useRef(props.close);
+  close.current = props.close;
+  useEffect(() => claimPopover(() => close.current()), []);
   if (props.context !== "agent") return null;
   return <AgentTools {...props} />;
 }
 
 function AgentTools(props: PluginButtonContentProps & { context: "agent" }) {
   const { agentId, theme, layout } = props;
-  const subscribe = useCallback((listener: () => void) => subscribeGroup(agentId, listener), [agentId]);
-  const entries = useSyncExternalStore(subscribe, () => groupEntries(agentId));
+  const entries = useGroupEntries(agentId);
   const [chosen, setChosen] = useState(() => recallSelection(agentId));
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
