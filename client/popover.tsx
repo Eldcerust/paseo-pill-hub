@@ -87,7 +87,7 @@ export function HubPopover(props: PluginButtonContentProps) {
   useEffect(() => {
     // console.error, because that is the level the desktop app keeps in its log: a second line here
     // with the same host and chat means one pill drawn twice, two different hosts mean two hubs.
-    console.error("[pill-hub] tools popover opened", { host: props.host.id, agent: agentId, hubs: hubCount() });
+    console.error(`[pill-hub] tools popover opened host=${props.host.id} agent=${agentId} hubs=${hubCount()}`);
     return claimPopover(agentId, () => close.current());
     // Once per mount: the host remounts this every time the popover opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps

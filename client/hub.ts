@@ -104,7 +104,7 @@ export function startHub(client: PluginClientContext): HubController {
   joinHub(member);
   // console.error, because that is the level the desktop app keeps in its log. One line per hub: the
   // app runs one hub per host it is connected to, so two lines here mean two installations.
-  console.error("[pill-hub] hub started", { hubs: hubCount() });
+  console.error(`[pill-hub] hub started hubs=${hubCount()}`);
   // A hub of an older kind may hold the bus with the tools attached to it. Take the bus the way
   // reattach() does, so they come to the shared api. When another hub of this kind is already on the
   // bus, the tools are attached to the shared api already, and this hub just starts showing them.

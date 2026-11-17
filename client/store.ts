@@ -236,7 +236,7 @@ export function claimPopover(agentId: string, close: () => void): () => void {
     // The same pill mounted twice (the host keeps a composer per open tab). Both surfaces share one
     // open flag, so closing either closes the one just opened: leave both up and say so in the log.
     // console.error, because that is the level the desktop app keeps in its log.
-    console.error("[pill-hub] the Tools popover is mounted twice for one chat; left the older surface alone", { agentId });
+    console.error(`[pill-hub] the Tools popover is mounted twice for one chat agent=${agentId}`);
   }
   return () => {
     const state = store.getState();
