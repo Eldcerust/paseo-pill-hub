@@ -4,6 +4,7 @@ import { ScrollView } from "@getpaseo/plugin/client/ui";
 import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { getBus } from "./bus";
+import { drawnWithoutAnchor, hideOwnOverlay } from "./duplicate";
 import { currentHeights, heightFor, sheetToolHeight, subscribeHeights } from "./heights";
 import { describeNoTools, type NoToolsFacts } from "./no-tools";
 import { claimPopover, hubCount, hubProbe, reattachTools, recallSelection, recallSort, releasePopover, rememberSelection, rememberSort, storeStats, useGroupEntries, usePopoverClaim } from "./store";
@@ -76,20 +77,6 @@ function NoTools({ agentId, theme, width, minHeight }: { agentId: string; theme:
   );
 }
 
-/**
- * A surface drawn against a pill that has no layout lands in the viewport's top-left corner. That is the
- * duplicate: the host kept a composer mounted for a chat and drew its Tools popover too. Only one of the
- * two is anchored to something the user can see, so only that one renders.
- */
-function drawnWithoutAnchor(node: unknown): boolean {
-  const element = node as { getBoundingClientRect?: () => { left: number; top: number } } | null;
-  const rect = element?.getBoundingClientRect?.();
-  // No DOM (native): nothing to measure, so nothing is hidden.
-  if (!rect) return false;
-  // Position only: a hidden duplicate's wrapper collapses to no size but keeps its place.
-  return rect.left < 80 && rect.top < 80;
-}
-
 /** The single Tools pill's popover: one header row (search, scrolling tabs, sort), then the selected tool's own popover content. */
 export function HubPopover(props: PluginButtonContentProps) {
   const close = useRef(props.close);
@@ -97,6 +84,7 @@ export function HubPopover(props: PluginButtonContentProps) {
   const agentId = props.context === "agent" ? props.agentId : "";
   const root = useRef<View>(null);
   const mine = useRef(0);
+  const restore = useRef<(() => void) | undefined>(undefined);
   const claim = usePopoverClaim();
   const [duplicate, setDuplicate] = useState(false);
 
@@ -113,8 +101,23 @@ export function HubPopover(props: PluginButtonContentProps) {
     // The claim holder is the surface the user opened, so it never hides itself. Any other surface for
     // the same chat is the duplicate, and it hides only if it was drawn without an anchor.
     const holder = claim !== null && claim.id === mine.current;
-    setDuplicate(!holder && claim?.agentId === agentId && drawnWithoutAnchor(root.current));
+    const isDuplicate = !holder && claim?.agentId === agentId && drawnWithoutAnchor(root.current);
+    setDuplicate(isDuplicate);
+    if (isDuplicate) {
+      restore.current ??= hideOwnOverlay(root.current);
+    } else {
+      restore.current?.();
+      restore.current = undefined;
+    }
   }, [claim, agentId]);
+
+  useEffect(
+    () => () => {
+      restore.current?.();
+      restore.current = undefined;
+    },
+    [],
+  );
 
   if (props.context !== "agent") return null;
   // The wrapper stays mounted so the duplicate can keep measuring itself; only its content hides.
