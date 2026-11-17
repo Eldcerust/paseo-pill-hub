@@ -67,14 +67,26 @@ function carriers(): object[] {
   return list.filter((carrier) => Object.isExtensible(carrier));
 }
 
-/** The shared bus, or a private throwaway when another version already owns the slot. */
+/** Whether a value on a carrier is a bus this copy can use, whatever version published it. */
+function isBus(value: unknown): value is Bus {
+  if (value === null || typeof value !== "object") return false;
+  const candidate = value as Partial<Bus>;
+  return typeof candidate.version === "number" && typeof candidate.tools?.set === "function" && typeof candidate.listeners?.add === "function";
+}
+
+/**
+ * The one bus in this realm.
+ *
+ * A tool is only visible to a hub when both hold the same object, so a bus another copy already
+ * published is used as it is, whatever `version` it declares: a copy that speaks another version is
+ * another copy of this plugin, not a different bus. Inventing a private bus here is what let a whole
+ * set of tools attach to an object no hub could see, and it is why the popover could count tool
+ * registrations and still find no hub on the bus it read.
+ */
 export function getBus(): Bus {
   const places = carriers();
-  const existing = places.map((place) => (place as Record<string, Bus | undefined>)[BUS_KEY]).find(Boolean);
-  if (existing) {
-    if (existing.version === BUS_VERSION) return existing;
-    return { version: BUS_VERSION, tools: new Map(), listeners: new Set() };
-  }
+  const existing = places.map((place) => (place as Record<string, unknown>)[BUS_KEY]).find(isBus);
+  if (existing) return existing;
   const created: Bus = { version: BUS_VERSION, tools: new Map(), listeners: new Set() };
   for (const place of places) {
     try {
@@ -86,16 +98,28 @@ export function getBus(): Bus {
   return created;
 }
 
+/** Whether a value on a carrier is a versioned state object. */
+function isVersioned(value: unknown): value is { version: number } {
+  return value !== null && typeof value === "object" && typeof (value as { version?: unknown }).version === "number";
+}
+
 /**
  * State every copy of the hub in this app has to share. The app runs one copy of each plugin per host
- * it is connected to, inside one JS realm, so two hubs can be live at once, each for its own host.
- * Module-level variables would be private to each copy. This is found on the same carriers as the bus,
- * and replaced when `version` differs, so a changed shape never meets an older one.
+ * it is connected to, inside one JS realm, so two hubs can be live at once, each for its own host, and
+ * a plugin update can leave the previous bundle's copy running beside the new one. Module-level
+ * variables would be private to each copy, so all of them read this one object from the carriers.
+ *
+ * The slot is owned by the newest version that has ever claimed it: a copy that finds a newer state
+ * uses it, and a copy that finds an older one takes the slot once, after which the older copy adopts
+ * the newer shape instead of taking it back. "Replace whatever differs" cannot converge, because two
+ * copies then replace each other's state on every read, and the hub and the api already on the bus are
+ * left in an object nothing reads: that is the popover that said no hub was on the bus while the
+ * tools were attached to one.
  */
 export function sharedState<T extends { version: number }>(key: string, version: number, create: () => T): T {
   const places = carriers();
-  const existing = places.map((place) => (place as Record<string, T | undefined>)[key]).find(Boolean);
-  if (existing && existing.version === version) return existing;
+  const existing = places.map((place) => (place as Record<string, unknown>)[key]).find(isVersioned);
+  if (existing && existing.version >= version) return existing as T;
   const created = create();
   for (const place of places) {
     try {

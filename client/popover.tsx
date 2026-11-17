@@ -3,11 +3,10 @@ import type { PluginButtonContentProps } from "@getpaseo/plugin/client";
 import { ScrollView } from "@getpaseo/plugin/client/ui";
 import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
-import { getBus } from "./bus";
 import { drawnWithoutAnchor, hideOwnOverlay } from "./duplicate";
 import { currentHeights, heightFor, sheetToolHeight, subscribeHeights } from "./heights";
-import { describeNoTools, type NoToolsFacts } from "./no-tools";
-import { claimPopover, hubCount, hubProbe, reattachTools, recallSelection, recallSort, releasePopover, rememberSelection, rememberSort, storeStats, useGroupEntries, usePopoverClaim } from "./store";
+import { describeNoTools } from "./no-tools";
+import { claimPopover, hubCount, popoverFacts, reattachTools, recallSelection, recallSort, releasePopover, rememberSelection, rememberSort, useGroupEntries, usePopoverClaim } from "./store";
 import { activeTool, filterTools, sortTools } from "./tabs";
 import { SortButton, ToolSearch } from "./tool-search";
 import { ToolStrip } from "./tool-strip";
@@ -39,14 +38,12 @@ class ToolBoundary extends Component<{ name: string; theme: PluginTheme; childre
  */
 function NoTools({ agentId, theme, width, minHeight }: { agentId: string; theme: PluginTheme; width: number | `${number}%`; minHeight?: number }) {
   const [asked, setAsked] = useState(0);
-  const bus = getBus();
-  const announced = [...bus.tools.values()].map((tool) => tool.label);
-  const facts: NoToolsFacts = { announced, registrations: bus.listeners.size, onBus: hubProbe().onBus, otherChats: storeStats().chats };
+  const facts = popoverFacts();
   const { summary, hint, details } = describeNoTools(facts);
   useEffect(() => {
     // console.error, because that is the level the desktop app keeps in its log.
-    console.error("[pill-hub] the Tools popover opened with no tools for this chat", { agentId, ...facts });
-    if (announced.length > 0) reattachTools();
+    console.error(`[pill-hub] the Tools popover opened with no tools for this chat ${JSON.stringify({ agentId, ...facts })}`);
+    if (facts.announced.length > 0) reattachTools();
     // Once per time it opens: the tools showing up replaces this view, and asking again is the button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

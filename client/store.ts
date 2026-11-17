@@ -1,4 +1,5 @@
 import { getBus, sharedState, type HubApi, type HubEntry } from "./bus";
+import type { NoToolsFacts } from "./no-tools";
 import type { SortDirection } from "./tabs";
 import { createStore, useStore, type StoreApi } from "./zustand";
 
@@ -57,6 +58,48 @@ interface Shared {
   /** The one api on the bus, whichever hub put it there. */
   api: HubApi;
   popoverSeq: number;
+  /** A view for a copy of this plugin built before the store moved to zustand. See `defineOlderView`. */
+  readonly groups?: ReadonlyMap<string, OlderGroup>;
+  /** Same view, for the selection an older copy reads and writes. */
+  readonly selection?: ReadonlyMap<string, string>;
+}
+
+/** One chat's tools, in the shape a copy built before the zustand store reads. */
+interface OlderGroup {
+  workspaceId: string;
+  slots: Map<string, { token: symbol; entry: HubEntry }>;
+  snapshot: readonly HubEntry[];
+  listeners: Set<() => void>;
+}
+
+/**
+ * The two fields a copy of this plugin built before the store moved to zustand reads out of the shared
+ * state. Such a copy keeps running beside this one when the app is connected to two hosts, or when a
+ * plugin update left the previous bundle loaded, so it renders its own popover from `groups` and its
+ * selection from `selection`. They are views of the one store rather than storage, so they cannot
+ * drift from it; a write through them is lost, which only that older copy's selection would do.
+ */
+function defineOlderView(shared: Shared): void {
+  Object.defineProperties(shared, {
+    groups: {
+      configurable: true,
+      enumerable: false,
+      get: (): ReadonlyMap<string, OlderGroup> => {
+        const groups = new Map<string, OlderGroup>();
+        for (const [agentId, group] of Object.entries(shared.store.getState().groups)) {
+          const slots = new Map<string, { token: symbol; entry: HubEntry }>();
+          for (const entry of group.entries) slots.set(entry.toolId, { token: Symbol(entry.toolId), entry });
+          groups.set(agentId, { workspaceId: group.workspaceId, slots, snapshot: group.entries, listeners: new Set() });
+        }
+        return groups;
+      },
+    },
+    selection: {
+      configurable: true,
+      enumerable: false,
+      get: (): ReadonlyMap<string, string> => new Map(Object.entries(shared.store.getState().selection)),
+    },
+  });
 }
 
 const SHARED_KEY = "__paseoPillHubShared";
@@ -89,6 +132,7 @@ function createShared(): Shared {
       },
     },
   };
+  defineOlderView(shared);
   return shared;
 }
 
@@ -119,13 +163,36 @@ export function reattachTools(): void {
 }
 
 export interface HubProbe {
-  /** Whether a hub is running and its api is the one on the bus, which is the one tools attach to. */
+  /** Hubs running in the state every copy of the plugin reads. One per host; more than one is normal. */
+  hubs: number;
+  /** Whether this copy's api is the one on the bus, which is the one tools attach to. */
   onBus: boolean;
+  /** Whether the bus carries a hub api that this copy does not publish, so tools attach elsewhere. */
+  foreign: boolean;
 }
 
 export function hubProbe(): HubProbe {
   const { members, api } = shared();
-  return { onBus: members.size > 0 && getBus().hub === api };
+  const { hub } = getBus();
+  return { hubs: members.size, onBus: members.size > 0 && hub === api, foreign: hub !== undefined && hub !== api };
+}
+
+/**
+ * The facts the empty Tools popover reports: what the bus carries, where this copy stands, and how many
+ * chats do have tools. Read here, and not in the view, so a test can build them from a real bus and a
+ * real hub instead of a hand-written object.
+ */
+export function popoverFacts(): NoToolsFacts {
+  const bus = getBus();
+  const probe = hubProbe();
+  return {
+    announced: [...bus.tools.values()].map((tool) => tool.label),
+    registrations: bus.listeners.size,
+    onBus: probe.onBus,
+    otherChats: storeStats().chats,
+    hubs: probe.hubs,
+    claim: probe.onBus ? "this" : probe.foreign ? "other" : "none",
+  };
 }
 
 /** How many hubs are running in this app. One per host it is connected to; more than one is normal. */

@@ -8,6 +8,13 @@ export interface NoToolsFacts {
   onBus: boolean;
   /** Chats that do have tools attached in this hub. */
   otherChats: number;
+  /** Hubs running in the state this copy reads. Absent means the caller did not say: one hub. */
+  hubs?: number;
+  /**
+   * Which api the bus carries: this copy's, another copy's, or none. Absent means the caller did not
+   * say, and a hub that is not on the bus attached its tools to another copy.
+   */
+  claim?: "this" | "other" | "none";
 }
 
 /**
@@ -17,6 +24,8 @@ export interface NoToolsFacts {
  */
 export function describeNoTools(facts: NoToolsFacts): { summary: string; hint: string; details: string } {
   const { announced, registrations, onBus, otherChats } = facts;
+  const hubs = facts.hubs ?? 1;
+  const claim = facts.claim ?? (onBus ? "this" : "other");
   const details = `Tool registrations alive: ${registrations}. This hub is the one tools attach to: ${onBus ? "yes" : "no"}. Chats with tools attached: ${otherChats}.`;
   if (announced.length === 0) {
     return {
@@ -26,6 +35,20 @@ export function describeNoTools(facts: NoToolsFacts): { summary: string; hint: s
     };
   }
   const names = announced.length <= 6 ? announced.join(", ") : `${announced.slice(0, 6).join(", ")} and ${announced.length - 6} more`;
+  if (hubs === 0) {
+    return {
+      summary: `Reported in: ${names}. No hub is running in this copy of the plugin, so none of them can attach here.`,
+      hint: "The pill you opened was drawn by another copy of the hub. Reload the app so one hub runs for every host.",
+      details,
+    };
+  }
+  if (claim === "none") {
+    return {
+      summary: `Reported in: ${names}. No hub has claimed the bus, so none of them can attach.`,
+      hint: "Reconnect tools. A hub that is running takes the bus again when asked.",
+      details,
+    };
+  }
   if (!onBus) {
     return {
       summary: `Reported in: ${names}. They attached to another copy of the hub, not this one.`,

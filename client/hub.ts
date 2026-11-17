@@ -91,9 +91,13 @@ export function startHub(client: PluginClientContext): HubController {
    * A tool only ever compares "hub or own pill". One that is attached to an earlier hub therefore
    * stays attached to it when another hub takes the bus, and the new hub shows no tools. Letting the
    * bus go empty for a moment makes every tool drop its attachment and attach again, to this hub.
+   *
+   * An empty bus is this hub's to take: a mounted hub that finds no api on the bus claims it, which is
+   * what the popover's Reconnect does. A bus another api holds is left alone, because taking it would
+   * remove that api's tools instead of restoring these.
    */
   function reattach() {
-    if (stopped || bus.hub !== api) return;
+    if (stopped || (bus.hub && bus.hub !== api)) return;
     bus.hub = undefined;
     notify(bus);
     bus.hub = api;
