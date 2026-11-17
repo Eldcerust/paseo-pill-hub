@@ -83,7 +83,7 @@ export function HubPopover(props: PluginButtonContentProps) {
   // the one-popover claim and closes the older one.
   const close = useRef(props.close);
   close.current = props.close;
-  useEffect(() => claimPopover(() => close.current()), []);
+  useEffect(() => claimPopover(props.context === "agent" ? props.agentId : "", () => close.current()), []);
   if (props.context !== "agent") return null;
   return <AgentTools {...props} />;
 }

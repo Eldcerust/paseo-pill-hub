@@ -23,10 +23,10 @@ beforeEach(() => {
 describe("one Tools popover at a time", () => {
   it("closes the popover that was already open", () => {
     const older = vi.fn();
-    claimPopover(older);
+    claimPopover("a1", older);
     const newer = vi.fn();
 
-    claimPopover(newer);
+    claimPopover("a2", newer);
 
     expect(older).toHaveBeenCalledTimes(1);
     expect(newer).not.toHaveBeenCalled();
@@ -34,9 +34,9 @@ describe("one Tools popover at a time", () => {
 
   it("leaves the newer popover alone when the older one unmounts", () => {
     const older = vi.fn();
-    const releaseOlder = claimPopover(older);
+    const releaseOlder = claimPopover("a1", older);
     const newer = vi.fn();
-    claimPopover(newer);
+    claimPopover("a2", newer);
 
     releaseOlder();
 
@@ -46,11 +46,11 @@ describe("one Tools popover at a time", () => {
 
   it("lets the next popover open after the current one unmounts", () => {
     const first = vi.fn();
-    const releaseFirst = claimPopover(first);
+    const releaseFirst = claimPopover("a1", first);
     releaseFirst();
     const second = vi.fn();
 
-    claimPopover(second);
+    claimPopover("a1", second);
 
     expect(first).not.toHaveBeenCalled();
     expect(second).not.toHaveBeenCalled();

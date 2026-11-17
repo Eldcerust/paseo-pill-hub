@@ -19,6 +19,7 @@ interface Group {
 /** The popover that is on screen. There is only ever one. */
 interface Popover {
   id: number;
+  agentId: string;
   close(): void;
 }
 
@@ -218,12 +219,17 @@ export function recallSelection(agentId: string): string | undefined {
  * two surfaces, one of them anchored to a composer that is no longer laid out. The newest mount takes
  * the claim and closes whatever held it, which leaves the one the user just opened.
  */
-export function claimPopover(close: () => void): () => void {
+export function claimPopover(agentId: string, close: () => void): () => void {
   const { store } = shared();
   const id = ++shared().popoverSeq;
   const previous = store.getState().popover;
-  store.setState({ ...store.getState(), popover: { id, close } });
-  if (previous) previous.close();
+  store.setState({ ...store.getState(), popover: { id, agentId, close } });
+  if (previous) {
+    // console.error, because that is the level the desktop app keeps in its log: if a second surface is
+    // still on screen after this, the older one is frozen inside a hidden tab and only the app can drop it.
+    console.error("[pill-hub] a second Tools popover opened; closed the older one", { older: previous.agentId, opened: agentId });
+    previous.close();
+  }
   return () => {
     const state = store.getState();
     if (state.popover?.id === id) store.setState({ ...state, popover: null });
